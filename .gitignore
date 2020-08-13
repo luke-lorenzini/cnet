@@ -3,3 +3,10 @@
 ################################################################################
 
 /.vs
+/cnet/cnet/Debug
+/cnet/cnet/cnet.vcxproj.user
+/cnet/cnet/cnet.vcxproj.filters
+/cnet/cnet/cnet.vcxproj
+/cnet/cnet/cnet.aps
+/cnet/cnet.sln
+/cnet/.vs/cnet/v16
