@@ -10,17 +10,11 @@ typedef struct {
 	char ID;
 } Matrix_t;
 
-//typedef struct {
-//	Matrix_t W[LAYERS];
-//	Matrix_t b[LAYERS];
-//} Model_t;
-
 void axpy(const double, Matrix_t* x, Matrix_t* y);
 void gemv(Matrix_t* a, Matrix_t* b, Matrix_t* c);
 void gemm(Matrix_t* a, Matrix_t* b, Matrix_t* c);
 void scal(const double scale, Matrix_t* mat);
 void scopy(Matrix_t* x, Matrix_t* y);
-float snorm(Matrix_t* mat);
 double dnorm(Matrix_t* mat);
 
 #ifdef __cplusplus

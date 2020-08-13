@@ -29,10 +29,6 @@ void scopy(Matrix_t* x, Matrix_t* y) {
 	cblas_dcopy(x->Rows, x->Matrix, incX, y->Matrix, incY);
 }
 
-float snorm(Matrix_t* mat) {
-	return cblas_snrm2(mat->Rows, mat->Matrix, incX);
-}
-
 double dnorm(Matrix_t* mat) {
 	return cblas_dnrm2(mat->Rows, mat->Matrix, incX);
 }
