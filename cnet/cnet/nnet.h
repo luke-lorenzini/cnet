@@ -3,6 +3,14 @@
 
 #include "wrap_blas.h"
 
+#define LAYERS 4
+#define SAMPLE_SET	150
+
+typedef struct {
+	Matrix_t W[LAYERS];
+	Matrix_t b[LAYERS];
+} Model_t;
+
 void scal_mult(double alpha, Matrix_t* y, Matrix_t* out);
 void print(Matrix_t*);
 void kill_memory(Matrix_t* p);
@@ -14,15 +22,12 @@ void subtract(Matrix_t* x, Matrix_t* y, Matrix_t* out);
 // dW[l] = (n[l], n[l-1])
 // db[l] = (n[l], 1)
 
-#define LAYERS 4
-#define SAMPLE_SET	150
-
 #define VECTOR_WIDTH  1
 
 #define AAAA 4
 #define BBBB 16
 #define CCCC 16
-#define DDDD 1
+#define DDDD 3
 
 // Layers 20, 30, 50, 1
 // Layer 0 (3, 1)
@@ -48,8 +53,8 @@ typedef struct {
 
 void calculate_loss(Matrix_t* J, Matrix_t* a, Matrix_t* y);
 void fwd_prop(Matrix_t* W, Matrix_t* b, Matrix_t* a, Matrix_t* z);
-void back_prop(Matrix_t* W, Matrix_t* b, Matrix_t* z, Matrix_t* a, Matrix_t* y, Matrix_t* dW, Matrix_t* db, Matrix_t* dz, int sample);
-void init_network(Matrix_t* x, Matrix_t* y, Matrix_t* W, Matrix_t* b, Matrix_t* a, Matrix_t* z, Matrix_t* dz, Matrix_t* dW, Matrix_t* db, Matrix_t* J);
+void back_prop(Matrix_t* W, Matrix_t* b, Matrix_t* z, Matrix_t* a, Matrix_t* y, Matrix_t* dW, Matrix_t* db, Matrix_t* dz);
+void init_network(Matrix_t* W, Matrix_t* b, Matrix_t* x, Matrix_t* y, Matrix_t* a, Matrix_t* z, Matrix_t* dz, Matrix_t* dW, Matrix_t* db, Matrix_t* J);
 void gradcheck(Matrix_t* W, Matrix_t* b, Matrix_t* dW, Matrix_t* db);
 
 #endif
