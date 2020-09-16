@@ -3,8 +3,8 @@
 
 #include "wrap_blas.h"
 
+#define	EPOCHS 100000
 #define LAYERS 4
-#define SAMPLE_SET	150
 
 typedef struct {
 	Matrix_t W[LAYERS];
@@ -16,6 +16,11 @@ void print(Matrix_t*);
 void kill_memory(Matrix_t* p);
 void zeros(Matrix_t* mat);
 void subtract(Matrix_t* x, Matrix_t* y, Matrix_t* out);
+void regularize(Matrix_t* W, Matrix_t* dW);
+double getFwdTime(void);
+double getBkwdTime(void);
+double getLossTime(void);
+double sum_vector(Matrix_t* vecIn);
 
 // W[l] = (n[l], n[l-1])
 // b[l] = (n[l], 1)
@@ -24,10 +29,10 @@ void subtract(Matrix_t* x, Matrix_t* y, Matrix_t* out);
 
 #define VECTOR_WIDTH  1
 
-#define AAAA 4
+#define AAAA LOGITS_COLUMNS
 #define BBBB 16
 #define CCCC 16
-#define DDDD 3
+#define DDDD LABELS_COLUMNS
 
 // Layers 20, 30, 50, 1
 // Layer 0 (3, 1)

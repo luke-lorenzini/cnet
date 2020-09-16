@@ -2,8 +2,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "data.h"
+#include "import_data.h"
 #include "nnet.h"
 
 Matrix_t scal_add(double val, Matrix_t* source);
@@ -11,10 +13,13 @@ void init_W(Matrix_t* mat, int size);
 void trans(Matrix_t* A, Matrix_t* B);
 void calc_drelu(Matrix_t* vecIn, Matrix_t* vecOut);
 void calc_relu(Matrix_t* vecIn, Matrix_t* vecOut);
+void calc_tanh(Matrix_t* vecIn, Matrix_t* vecOut);
+void calc_dtanh(Matrix_t* vecIn, Matrix_t* vecOut);
 void calc_sigmoid(Matrix_t* vecIn, Matrix_t* vecOut);
 void calc_softmax(Matrix_t* vecIn, Matrix_t* vecOut);
 void mult(Matrix_t* x, Matrix_t* y, Matrix_t* out);
 void add(Matrix_t* x, Matrix_t* y, Matrix_t* out);
+double find_max(Matrix_t* vecIn);
 
 void calc_log(Matrix_t* inMat, Matrix_t* outMat);
 
@@ -37,9 +42,13 @@ Config_t thing[4] = {
 	}
 };
 
+clock_t startLoss, endLoss, totalLoss;
+
 // cost
 // J += -(y log(a[N]) + (1 - y) log(1 - a[N]))
-void calculate_loss(Matrix_t* ptr_J, Matrix_t* ptr_a, Matrix_t* ptr_y) {
+void calculate_loss(Matrix_t* J, Matrix_t* ptr_a, Matrix_t* ptr_y) {
+	startLoss = clock();
+
 	Matrix_t ones;
 	Matrix_t temp3;
 	Matrix_t temp4;
@@ -106,16 +115,20 @@ void calculate_loss(Matrix_t* ptr_J, Matrix_t* ptr_a, Matrix_t* ptr_y) {
 	//printf("B2\n");
 	//print(&temp5);
 
-	// Calc ptr_J
+	// Calc J
+	// todo j should be 1 number, not 3
 	mult(&temp4, &temp5, &temp5);
 	//printf("ish\n");
 	//print(&temp5);
 	axpy(1, &A, &temp5);
-	//printf("ptr_J\n");
+	//printf("J\n");
 	//print(&temp5);
-	axpy(-1, &temp5, ptr_J);
-	//printf("ptr_J\n");
-	//print(ptr_J);
+	axpy(-1, &temp5, J);
+	//if ((J->Matrix[0]) < 0) {
+	//	printf("a\n");
+	//}
+	//printf("J\n");
+	//print(J);
 
 	kill_memory(&ones);
 	kill_memory(&temp3);
@@ -123,16 +136,30 @@ void calculate_loss(Matrix_t* ptr_J, Matrix_t* ptr_a, Matrix_t* ptr_y) {
 	kill_memory(&temp5);
 	kill_memory(&A);
 	kill_memory(&B);
+
+	endLoss = clock();
+	totalLoss += (endLoss - startLoss);
 }
+
+double getLossTime() {
+	return totalLoss;
+}
+
+clock_t startFwd, endFwd, totalFwd;
 
 // fwd prop
 // z[n] = (W[n] DOT a[n - 1]) + b[n]
 // a[n] = relu(z[n])
 // a[N] = sig(z[N])
 void fwd_prop(Matrix_t* W, Matrix_t* b, Matrix_t* a, Matrix_t* z) {
+	startFwd = clock();
 	for (int layer = 1; layer < LAYERS; layer++) {
-		//printf("W[%d]\n", layer);
-		//print(&W[layer]);
+#ifdef USE_DIAGNOSTICS
+		printf("W[%d]\n", layer);
+		print(&W[layer]);
+		printf("b[%d]\n", layer);
+		print(&b[layer]);
+#endif
 		// z = Wx + b
 		gemm(&W[layer], &a[layer - 1], &z[layer]);
 
@@ -142,7 +169,7 @@ void fwd_prop(Matrix_t* W, Matrix_t* b, Matrix_t* a, Matrix_t* z) {
 
 		// ptr_a = g(z)
 		if (layer != (LAYERS - 1)) {
-			calc_relu(&z[layer], &a[layer]);
+			calc_tanh(&z[layer], &a[layer]);
 		}
 		else {
 			//printf("z[%d]\n", layer);
@@ -157,10 +184,21 @@ void fwd_prop(Matrix_t* W, Matrix_t* b, Matrix_t* a, Matrix_t* z) {
 			//print(&a[layer]);
 			//printf("\n");
 		}
-		//printf("a[%d]\n", layer);
-		//print(&a[layer]);
+#ifdef USE_DIAGNOSTICS
+		printf("a[%d]\n", layer);
+		print(&a[layer]);
+#endif
 	}
+
+	endFwd = clock();
+	totalFwd += (endFwd - startFwd);
 }
+
+double getFwdTime() {
+	return totalFwd;
+}
+
+clock_t startBkwd, endBkwd, totalBkwd;
 
 // back prop
 // dz[N] = a[N] - y
@@ -168,11 +206,17 @@ void fwd_prop(Matrix_t* W, Matrix_t* b, Matrix_t* a, Matrix_t* z) {
 // db[n] += dz[n]
 // dW[n] += dz[n] DOT aT[n - 1]
 void back_prop(Matrix_t* W, Matrix_t* b, Matrix_t* z, Matrix_t* a, Matrix_t* y, Matrix_t* dW, Matrix_t* db, Matrix_t* dz) {
+	startBkwd = clock();
+
 	Matrix_t Wt[LAYERS];
 	Matrix_t zTemp[LAYERS];
 	Matrix_t at[LAYERS];
 	Matrix_t temp0[LAYERS];
 	Matrix_t temp1[LAYERS];
+	Matrix_t tempy;
+	tempy.Rows = y->Rows;
+	tempy.Cols = y->Cols;
+	tempy.Matrix = (double*)calloc(tempy.Rows * tempy.Cols, sizeof(double));
 
 	for (int idx = 0; idx < LAYERS; idx++) {
 		Wt[idx].Rows = thing[idx].Cols;
@@ -198,10 +242,21 @@ void back_prop(Matrix_t* W, Matrix_t* b, Matrix_t* z, Matrix_t* a, Matrix_t* y, 
 
 	for (int layer = LAYERS - 1; layer > 0; layer--) {
 		if (layer == (LAYERS - 1)) {
-			// dz[N] // TODO: Fix y, don't use array
-			scal(-1, y);
-			axpy(1, &a[layer], y);
-			scopy(y, &dz[layer]);
+			// dz[N]
+			//printf("y\n");
+			//print(y);
+			scopy(y, &tempy);
+			scal(-1, &tempy);
+			//printf("tempy\n");
+			//print(&tempy);
+			//printf("a[%d]\n", layer);
+			//print(&a[layer]);
+			axpy(1, &a[layer], &tempy);
+			//printf("tempy\n");
+			//print(&tempy);
+			scopy(&tempy, &dz[layer]);
+			//printf("dz[%d]\n", layer);
+			//print(&dz[layer]);
 		}
 		else {
 			// dz[n]
@@ -213,19 +268,23 @@ void back_prop(Matrix_t* W, Matrix_t* b, Matrix_t* z, Matrix_t* a, Matrix_t* y, 
 			gemm(&Wt[layer + 1], &dz[layer + 1], &temp1[layer]);
 			//printf("temp1[%d]\n", layer);
 			//print(&temp1[layer]);
-			calc_drelu(&z[layer], &zTemp[layer]);
+			calc_dtanh(&z[layer], &zTemp[layer]);
+			//printf("z[%d]\n", layer);
+			//print(&z[layer]);
 			//printf("zTemp[%d]\n", layer);
 			//print(&zTemp[layer]);
 			mult(&temp1[layer], &zTemp[layer], &dz[layer]);
 		}
-		//printf("dz[%d]\n", layer);
-		//print(&dz[layer]);
-
+#ifdef USE_DIAGNOSTICS
+		printf("dz[%d]\n", layer);
+		print(&dz[layer]);
+#endif
 		// db[n]
-		axpy(1, &dz[layer], &db[layer]);
-		//printf("db[%d]\n", layer);
-		//print(&db[layer]);
-
+		axpy(1, &dz[layer], &db[layer]); 
+#ifdef USE_DIAGNOSTICS
+		printf("db[%d]\n", layer);
+		print(&db[layer]);
+#endif
 		// dW[n]
 		//printf("a[%d]\n", layer - 1);
 		//print(&a[layer - 1]);
@@ -244,9 +303,11 @@ void back_prop(Matrix_t* W, Matrix_t* b, Matrix_t* z, Matrix_t* a, Matrix_t* y, 
 		//	print(&dW[layer]);
 		//	printf("\n");
 		//}
-		//printf("dW[%d]\n", layer);
-		//print(&dW[layer]);
-		//printf("\n");
+#ifdef USE_DIAGNOSTICS
+		printf("dW[%d]\n", layer);
+		print(&dW[layer]);
+		printf("\n");
+#endif
 	}
 
 	for (int layer = 0; layer < LAYERS; layer++) {
@@ -256,8 +317,14 @@ void back_prop(Matrix_t* W, Matrix_t* b, Matrix_t* z, Matrix_t* a, Matrix_t* y, 
 		kill_memory(&temp0[layer]);
 		kill_memory(&temp1[layer]);
 	}
+
+	endBkwd = clock();
+	totalBkwd += (endBkwd - startBkwd);
 }
 
+double getBkwdTime() {
+	return totalBkwd;
+}
 
 void gradcheck(Matrix_t* W, Matrix_t* b, Matrix_t* dW, Matrix_t* db) {
 	const int index = 2;
@@ -350,13 +417,43 @@ void gradcheck(Matrix_t* W, Matrix_t* b, Matrix_t* dW, Matrix_t* db) {
 	printf("grad %f\n", grad);
 }
 
+void regularize(Matrix_t* W, Matrix_t* dW) {
+	double lambda = 0.4;
+	double decayRate = lambda / (double)RECORDS;
+	Matrix_t Wtemp;
+
+	// dW = dW + lambda/m mult W
+	//for (int layer = 1; layer < LAYERS; layer++) {
+		Wtemp.Rows = W->Rows;
+		Wtemp.Cols = W->Cols;
+		Wtemp.Matrix = (double*)calloc(Wtemp.Rows * Wtemp.Cols, sizeof(double));
+
+		//printf("dW[%d]\n", layer);
+		//print(&dW[layer]);
+		//printf("W[%d]\n", layer);
+		//print(&W[layer]);
+		scal_mult(decayRate, W, &Wtemp);
+		add(dW, &Wtemp, dW);
+		//printf("Wtemp[%d]\n", layer);
+		//print(&Wtemp[layer]);
+		//printf("dW[%d]\n", layer);
+		//print(&dW[layer]);
+	//}
+
+		kill_memory(&Wtemp);
+}
+
 void init_network(Matrix_t* W, Matrix_t* b, Matrix_t* x, Matrix_t* y, Matrix_t* a, Matrix_t* z, Matrix_t* dz, Matrix_t* dW, Matrix_t* db, Matrix_t* J) {
-	for (int i = 0; i < SAMPLE_SET; i++) {
+	for (int i = 0; i < RECORDS; i++) {
 		x[i].Rows = ROWS_0;
 		x[i].Cols = VECTOR_WIDTH;
 		x[i].Matrix = (double*)calloc(x[i].Rows * x[i].Cols, sizeof(double));
 		for (int j = 0; j < ROWS_0; j++) {
+#ifndef USE_IMPORT
 			x[i].Matrix[j] = IRIS_DATA[i][j];
+#else
+			x[i].Matrix[j] = get_logit(i, j);
+#endif
 		}
 		//printf("x[%d]\n", i);
 		//print(&x[i]);
@@ -365,6 +462,7 @@ void init_network(Matrix_t* W, Matrix_t* b, Matrix_t* x, Matrix_t* y, Matrix_t* 
 		y[i].Cols = VECTOR_WIDTH;
 		y[i].Matrix = (double*)calloc(y[i].Rows * y[i].Cols, sizeof(double));
 		for (int j = 0; j < ROWS_3; j++) {
+#ifndef USE_IMPORT
 			if (ROWS_3 == 1) {
 				if (i < 50) {
 					y[i].Matrix[j] = 1;
@@ -376,24 +474,57 @@ void init_network(Matrix_t* W, Matrix_t* b, Matrix_t* x, Matrix_t* y, Matrix_t* 
 			else {
 				y[i].Matrix[j] = IRIS_LABEL[i][j];
 			}
+#else
+			y[i].Matrix[j] = get_label(i, j);
+#endif
 		}
-		//printf("ptr_y[%d]\n", i);
-		//print(&ptr_y[i]);
+		//printf("y[%d]\n", i);
+		//print(&y[i]);
 	}
 
-	J->Rows = VECTOR_WIDTH;
+	J->Rows = ROWS_3;
 	J->Cols = VECTOR_WIDTH;
 	J->Matrix = (double*)calloc(J->Rows * J->Cols, sizeof(double));
 
-	for (int idx = 0; idx < LAYERS; idx++) {
+	for (int idx = 1; idx < LAYERS; idx++) {
 		W[idx].Rows = thing[idx].Rows;
 		W[idx].Cols = thing[idx].Cols;
 		W[idx].Matrix = (double*)calloc(W[idx].Rows * W[idx].Cols, sizeof(double));
 		init_W(&W[idx], W[idx].Cols);
+		printf("W[%d]\n", idx);
+		print(&W[idx]);
+		//for (int outer = 0; outer < W[idx].Rows; outer++) {
+		//	for (int inner = 0; inner < W[idx].Cols; inner++) {
+		//		if (idx == 1) {
+		//			*(W[idx].Matrix + outer * W[idx].Cols + inner) = W1[outer][inner];
+		//		}
+		//		else if(idx == 2) {
+		//			*(W[idx].Matrix + outer * W[idx].Cols + inner) = W2[outer][inner];
+		//		}
+		//		else if (idx == 3) {
+		//			*(W[idx].Matrix + outer * W[idx].Cols + inner) = W3[outer][inner];
+		//		}
+		//	}
+		//}
 
 		b[idx].Rows = thing[idx].Rows;
 		b[idx].Cols = VECTOR_WIDTH;
 		b[idx].Matrix = (double*)calloc(b[idx].Rows * b[idx].Cols, sizeof(double));
+		printf("b[%d]\n", idx);
+		print(&b[idx]);
+		//for (int outer = 0; outer < b[idx].Rows; outer++) {
+		//	for (int inner = 0; inner < b[idx].Cols; inner++) {
+		//		if (idx == 1) {
+		//			*(b[idx].Matrix + outer * b[idx].Cols + inner) = b1[outer][inner];
+		//		}
+		//		else if (idx == 2) {
+		//			*(b[idx].Matrix + outer * b[idx].Cols + inner) = b2[outer][inner];
+		//		}
+		//		else if (idx == 3) {
+		//			*(b[idx].Matrix + outer * b[idx].Cols + inner) = b3[outer][inner];
+		//		}
+		//	}
+		//}
 
 		z[idx].Rows = thing[idx].Rows;
 		z[idx].Cols = VECTOR_WIDTH;
@@ -430,28 +561,44 @@ Matrix_t scal_add(double val, Matrix_t* source) {
 	return sum;
 }
 
+double rand_gen() {
+	// return a uniformly distributed random value
+	return ((double)(rand()) + 1.) / ((double)(RAND_MAX)+1.);
+}
+double normalRandom() {
+	// return a normally distributed random value
+	double v1 = rand_gen();
+	double v2 = rand_gen();
+	return cos(2 * 3.14 * v2) * sqrt(-2. * log(v1));
+}
+
 void init_W(Matrix_t* mat, int size) {
+	double sigma = 82.0;
+	double Mi = 40.0;
+	sigma = 1;
+	Mi = 1;
 	double SCALE_FACTOR = sqrt(2 / (double)size);
-	SCALE_FACTOR = 0.0001;
+	SCALE_FACTOR = 0.1;
 	double sum = 0;
 	int count = 0;
 
 	for (int row = 0; row < mat->Rows; row++) {
 		for (int col = 0; col < mat->Cols; col++) {
-			*(mat->Matrix + row * mat->Cols + col) = rand() * SCALE_FACTOR;
+			*(mat->Matrix + row * mat->Cols + col) = normalRandom() * SCALE_FACTOR * sigma * Mi;
+			//*(mat->Matrix + row * mat->Cols + col) = rand() * SCALE_FACTOR;
 
 			sum += *(mat->Matrix + row * mat->Cols + col);
 			count++;
 		}
 	}
 
-	double mu = sum / count;
+	//double mu = sum / count;
 
-	for (int row = 0; row < mat->Rows; row++) {
-		for (int col = 0; col < mat->Cols; col++) {
-			*(mat->Matrix + row * mat->Cols + col) -= mu;
-		}
-	}
+	//for (int row = 0; row < mat->Rows; row++) {
+	//	for (int col = 0; col < mat->Cols; col++) {
+	//		*(mat->Matrix + row * mat->Cols + col) -= mu;
+	//	}
+	//}
 }
 
 void trans(Matrix_t* A, Matrix_t* B) {
@@ -475,11 +622,30 @@ void calc_sigmoid(Matrix_t* vecIn, Matrix_t* vecOut) {
 	}
 }
 
+void calc_tanh(Matrix_t* vecIn, Matrix_t* vecOut) {
+	for (int row = 0; row < vecIn->Rows; row++) {
+		*(vecOut->Matrix + row) = tanh(*(vecIn->Matrix + row));
+	}
+}
+
+void calc_dtanh(Matrix_t* vecIn, Matrix_t* vecOut) {
+	for (int row = 0; row < vecIn->Rows; row++) {
+		double a = exp(*(vecIn->Matrix + row));
+		double b = exp(-1 * *(vecIn->Matrix + row));
+		double num = a - b;
+		double den = a + b;
+		double val = pow(num, 2) / pow(den, 2);
+		*(vecOut->Matrix + row) = 1 - val;
+	}
+}
+
 void calc_softmax(Matrix_t* vecIn, Matrix_t* vecOut) {
 	double sum = 0;
 	double temp;
+	double max = find_max(vecIn);
+
 	for (int row = 0; row < vecIn->Rows; row++) {
-		temp = exp(*(vecIn->Matrix + row));
+		temp = exp(*(vecIn->Matrix + row) - max);
 		*(vecOut->Matrix + row) = temp;
 		sum += temp;
 	}
@@ -521,11 +687,11 @@ void scal_mult(double alpha, Matrix_t* y, Matrix_t* out) {
 }
 
 void calc_log(Matrix_t* inMat, Matrix_t* outMat) {
-	const double SMALL_NUMER = 10E-10;
+	const double SMALL_NUMBER = 10E-10;
 
 	for (int row = 0; row < inMat->Rows; row++) {
 		for (int col = 0; col < inMat->Cols; col++) {
-			*(outMat->Matrix + row * outMat->Cols + col) = log(*(inMat->Matrix + row * inMat->Cols + col) + SMALL_NUMER);
+			*(outMat->Matrix + row * outMat->Cols + col) = log(*(inMat->Matrix + row * inMat->Cols + col) + SMALL_NUMBER);
 		}
 	}
 }
@@ -562,4 +728,24 @@ void calc_relu(Matrix_t* vecIn, Matrix_t* vecOut) {
 	for (int row = 0; row < vecIn->Rows; row++) {
 		*(vecOut->Matrix + row) = *(vecIn->Matrix + row) > 0 ? *(vecIn->Matrix + row) : 0;
 	}
+}
+
+double sum_vector(Matrix_t* vecIn) {
+	double sum = 0.0;
+
+	for (int row = 0; row < vecIn->Rows; row++) {
+		sum  += *(vecIn->Matrix + row);
+	}
+
+	return sum;
+}
+
+double find_max(Matrix_t* vecIn) {
+	double max = 0.0;
+
+	for (int row = 0; row < vecIn->Rows; row++) {
+		max = *(vecIn->Matrix + row) > max ? *(vecIn->Matrix + row) : max;
+	}
+
+	return max;
 }
