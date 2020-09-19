@@ -49,75 +49,7 @@ int main() {
 			back_prop(W, b, z, a, &y[sample], dW, db, dz);
 		}
 
-		// update
-		// W[1] -= alpha * dW[1] / m
-		// b[1] -= alpha * db[1] / m
-		// J /= m
-		double inverseSize = 1 / (double)RECORDS;
-		double learningRateInitial = 0.1;
-		//learningRateInitial = 0.01;
-		double decayRate = 0.1;
-		double learningRate = learningRateInitial / (1 + decayRate + epoch);
-		double scale = learningRate * inverseSize;
-		scale = learningRateInitial * inverseSize;
-
-		for (int layer = 1; layer < LAYERS; layer++) {
-				//printf("dw[%d]\n", layer);
-				//print(&dW[layer]);
-			//regularize(&W[layer], &dW[layer]);
- 			scal_mult(scale, &dW[layer], &dW[layer]);
-			//printf("dw[%d]\n", layer);
-			//print(&dW[layer]);
-			//printf("W[%d]\n", layer);
-			//print(&W[layer]);
-			subtract(&W[layer], &dW[layer], &W[layer]);
-				//printf("W[%d]\n", layer);
-				//print(&W[layer]);
-			//printf("db[%d]\n", layer);
-			//print(&db[layer]);
-			scal_mult(scale, &db[layer], &db[layer]);
-			//printf("db[%d]\n", layer);
-			//print(&db[layer]);
-			//printf("b[%d]\n", layer);
-			//print(&b[layer]);
-			subtract(&b[layer], &db[layer], &b[layer]);
-			//printf("b[%d]\n", layer);
-			//print(&b[layer]);
-		}
-		scal(inverseSize, &J);
-
-		if (epoch % (EPOCHS / 10) == 0) {
-			for (int layer = 1; layer < LAYERS; layer++) {
-				printf("W[%d]\n", layer);
-				print(&W[layer]);
-				printf("b[%d]\n", layer);
-				print(&b[layer]);
-			}
-			//gradcheck(W, b, dW, db);
-			printf("J[%d]\n", epoch);
-			printf("Learning Rate %f\n", learningRate);
-			//print(&J);
-			printf("%f\n\n", sum_vector(&J));
-		}
-
-		//reset j, dw, db
-		for (int layer = 1; layer < LAYERS; layer++) {
-			//printf("dW[%d]\n", layer);
-			//print(&dW[layer]);
-
-			//printf("db[%d]\n", layer);
-			//print(&db[layer]);
-
-			zeros(&dW[layer]);
-			zeros(&db[layer]);
-
-			//printf("dW[%d]\n", layer);
-			//print(&dW[layer]);
-
-			//printf("db[%d]\n", layer);
-			//print(&db[layer]);
-		}
-		zeros(&J);
+		update_weights(W, b, dW, db, &J, epoch);
 	}
 
 	// Print weights after completion
@@ -137,7 +69,7 @@ int main() {
 		kill_memory(&y[sample]);
 	}
 
-	//kill_memory(&J);
+	kill_memory(&J);
 
 	for (int layer = 1; layer < LAYERS; layer++) {
 		kill_memory(&W[layer]);
@@ -157,12 +89,4 @@ int main() {
 	printf("Total backward prop time %f s\n", getBkwdTime() / (double)CLOCKS_PER_SEC);
 
 	return 0;
-}
-
-void calc_leaky_relu(int ROWS, float* vecIn, float* vecOut) {
-	const float SCALE = (float)0.01;
-
-	for (int row = 0; row < ROWS; row++) {
-		*(vecOut + row) = *(vecIn + row) > 0 ? *(vecIn + row) : SCALE * *(vecIn + row);
-	}
 }

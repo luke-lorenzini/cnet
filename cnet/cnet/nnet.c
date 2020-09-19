@@ -4,6 +4,11 @@
 #include <string.h>
 #include <time.h>
 
+#ifdef USE_CUDA
+#include <cuda_runtime.h>
+#include "cublas_v2.h"
+#endif
+
 #include "data.h"
 #include "import_data.h"
 #include "nnet.h"
@@ -153,38 +158,29 @@ clock_t startFwd, endFwd, totalFwd;
 // a[N] = sig(z[N])
 void fwd_prop(Matrix_t* W, Matrix_t* b, Matrix_t* a, Matrix_t* z) {
 	startFwd = clock();
+
 	for (int layer = 1; layer < LAYERS; layer++) {
-#ifdef USE_DIAGNOSTICS
-		printf("W[%d]\n", layer);
-		print(&W[layer]);
-		printf("b[%d]\n", layer);
-		print(&b[layer]);
-#endif
 		// z = Wx + b
 		gemm(&W[layer], &a[layer - 1], &z[layer]);
 
 		axpy(1, &b[layer], &z[layer]);
-		//printf("z%d\n", layer);
-		//print(&z[layer]);
 
-		// ptr_a = g(z)
 		if (layer != (LAYERS - 1)) {
-			calc_tanh(&z[layer], &a[layer]);
+			calc_relu(&z[layer], &a[layer]);
 		}
 		else {
-			//printf("z[%d]\n", layer);
-			//print(&z[layer]);
 			if (z[layer].Rows == 1) {
 				calc_sigmoid(&z[layer], &a[layer]);
 			}
 			else {
 				calc_softmax(&z[layer], &a[layer]);
 			}
-			//printf("Softmax\n");
-			//print(&a[layer]);
-			//printf("\n");
 		}
 #ifdef USE_DIAGNOSTICS
+		printf("W[%d]\n", layer);
+		print(&W[layer]);
+		printf("b[%d]\n", layer);
+		print(&b[layer]);
 		printf("a[%d]\n", layer);
 		print(&a[layer]);
 #endif
@@ -214,6 +210,7 @@ void back_prop(Matrix_t* W, Matrix_t* b, Matrix_t* z, Matrix_t* a, Matrix_t* y, 
 	Matrix_t temp0[LAYERS];
 	Matrix_t temp1[LAYERS];
 	Matrix_t tempy;
+
 	tempy.Rows = y->Rows;
 	tempy.Cols = y->Cols;
 	tempy.Matrix = (double*)calloc(tempy.Rows * tempy.Cols, sizeof(double));
@@ -268,7 +265,7 @@ void back_prop(Matrix_t* W, Matrix_t* b, Matrix_t* z, Matrix_t* a, Matrix_t* y, 
 			gemm(&Wt[layer + 1], &dz[layer + 1], &temp1[layer]);
 			//printf("temp1[%d]\n", layer);
 			//print(&temp1[layer]);
-			calc_dtanh(&z[layer], &zTemp[layer]);
+			calc_drelu(&z[layer], &zTemp[layer]);
 			//printf("z[%d]\n", layer);
 			//print(&z[layer]);
 			//printf("zTemp[%d]\n", layer);
@@ -317,6 +314,7 @@ void back_prop(Matrix_t* W, Matrix_t* b, Matrix_t* z, Matrix_t* a, Matrix_t* y, 
 		kill_memory(&temp0[layer]);
 		kill_memory(&temp1[layer]);
 	}
+	kill_memory(&tempy);
 
 	endBkwd = clock();
 	totalBkwd += (endBkwd - startBkwd);
@@ -324,6 +322,81 @@ void back_prop(Matrix_t* W, Matrix_t* b, Matrix_t* z, Matrix_t* a, Matrix_t* y, 
 
 double getBkwdTime() {
 	return totalBkwd;
+}
+
+void update_weights(Matrix_t* W, Matrix_t* b, Matrix_t* dW, Matrix_t* db, Matrix_t* J, int epoch) {
+	// update
+	// W[1] -= alpha * dW[1] / m
+	// b[1] -= alpha * db[1] / m
+	// J /= m
+	double inverseSize = 1 / (double)RECORDS;
+#ifdef USE_LRD
+	// learning rate decay
+	double learningRateInitial = 0.2;
+	double decayRate = 1;
+	double learningRate = learningRateInitial / (1 + decayRate * epoch);
+#else
+	double learningRate = 0.1;
+#endif
+	double scale = learningRate * inverseSize;
+
+	for (int layer = 1; layer < LAYERS; layer++) {
+		//printf("dw[%d]\n", layer);
+		//print(&dW[layer]);
+		regularize(&W[layer], &dW[layer]);
+		scal_mult(scale, &dW[layer], &dW[layer]);
+		//printf("dw[%d]\n", layer);
+		//print(&dW[layer]);
+		//printf("W[%d]\n", layer);
+		//print(&W[layer]);
+		subtract(&W[layer], &dW[layer], &W[layer]);
+		//printf("W[%d]\n", layer);
+		//print(&W[layer]);
+	//printf("db[%d]\n", layer);
+	//print(&db[layer]);
+		scal_mult(scale, &db[layer], &db[layer]);
+		//printf("db[%d]\n", layer);
+		//print(&db[layer]);
+		//printf("b[%d]\n", layer);
+		//print(&b[layer]);
+		subtract(&b[layer], &db[layer], &b[layer]);
+		//printf("b[%d]\n", layer);
+		//print(&b[layer]);
+	}
+	scal(inverseSize, J);
+
+	if (epoch % (EPOCHS / 10) == 0) {
+		for (int layer = 1; layer < LAYERS; layer++) {
+			printf("W[%d]\n", layer);
+			print(&W[layer]);
+			printf("b[%d]\n", layer);
+			print(&b[layer]);
+		}
+		//gradcheck(W, b, dW, db);
+		printf("J[%d]\n", epoch);
+		printf("Learning Rate %f\n", learningRate);
+		//print(&J);
+		printf("%f\n\n", sum_vector(J));
+	}
+
+	//reset j, dw, db
+	for (int layer = 1; layer < LAYERS; layer++) {
+		//printf("dW[%d]\n", layer);
+		//print(&dW[layer]);
+
+		//printf("db[%d]\n", layer);
+		//print(&db[layer]);
+
+		zeros(&dW[layer]);
+		zeros(&db[layer]);
+
+		//printf("dW[%d]\n", layer);
+		//print(&dW[layer]);
+
+		//printf("db[%d]\n", layer);
+		//print(&db[layer]);
+	}
+	zeros(J);
 }
 
 void gradcheck(Matrix_t* W, Matrix_t* b, Matrix_t* dW, Matrix_t* db) {
@@ -447,7 +520,11 @@ void init_network(Matrix_t* W, Matrix_t* b, Matrix_t* x, Matrix_t* y, Matrix_t* 
 	for (int i = 0; i < RECORDS; i++) {
 		x[i].Rows = ROWS_0;
 		x[i].Cols = VECTOR_WIDTH;
+#ifdef USE_CUDA
+		cudaMallocManaged(x[i].Matrix, x[i].Rows * x[i].Cols, sizeof(double), cudaMemAttachHost);
+#else
 		x[i].Matrix = (double*)calloc(x[i].Rows * x[i].Cols, sizeof(double));
+#endif
 		for (int j = 0; j < ROWS_0; j++) {
 #ifndef USE_IMPORT
 			x[i].Matrix[j] = IRIS_DATA[i][j];
@@ -493,38 +570,12 @@ void init_network(Matrix_t* W, Matrix_t* b, Matrix_t* x, Matrix_t* y, Matrix_t* 
 		init_W(&W[idx], W[idx].Cols);
 		printf("W[%d]\n", idx);
 		print(&W[idx]);
-		//for (int outer = 0; outer < W[idx].Rows; outer++) {
-		//	for (int inner = 0; inner < W[idx].Cols; inner++) {
-		//		if (idx == 1) {
-		//			*(W[idx].Matrix + outer * W[idx].Cols + inner) = W1[outer][inner];
-		//		}
-		//		else if(idx == 2) {
-		//			*(W[idx].Matrix + outer * W[idx].Cols + inner) = W2[outer][inner];
-		//		}
-		//		else if (idx == 3) {
-		//			*(W[idx].Matrix + outer * W[idx].Cols + inner) = W3[outer][inner];
-		//		}
-		//	}
-		//}
 
 		b[idx].Rows = thing[idx].Rows;
 		b[idx].Cols = VECTOR_WIDTH;
 		b[idx].Matrix = (double*)calloc(b[idx].Rows * b[idx].Cols, sizeof(double));
 		printf("b[%d]\n", idx);
 		print(&b[idx]);
-		//for (int outer = 0; outer < b[idx].Rows; outer++) {
-		//	for (int inner = 0; inner < b[idx].Cols; inner++) {
-		//		if (idx == 1) {
-		//			*(b[idx].Matrix + outer * b[idx].Cols + inner) = b1[outer][inner];
-		//		}
-		//		else if (idx == 2) {
-		//			*(b[idx].Matrix + outer * b[idx].Cols + inner) = b2[outer][inner];
-		//		}
-		//		else if (idx == 3) {
-		//			*(b[idx].Matrix + outer * b[idx].Cols + inner) = b3[outer][inner];
-		//		}
-		//	}
-		//}
 
 		z[idx].Rows = thing[idx].Rows;
 		z[idx].Cols = VECTOR_WIDTH;
@@ -578,17 +629,17 @@ void init_W(Matrix_t* mat, int size) {
 	sigma = 1;
 	Mi = 1;
 	double SCALE_FACTOR = sqrt(2 / (double)size);
-	SCALE_FACTOR = 0.1;
-	double sum = 0;
-	int count = 0;
+	//SCALE_FACTOR = 0.1;
+	//double sum = 0;
+	//int count = 0;
 
 	for (int row = 0; row < mat->Rows; row++) {
 		for (int col = 0; col < mat->Cols; col++) {
 			*(mat->Matrix + row * mat->Cols + col) = normalRandom() * SCALE_FACTOR * sigma * Mi;
 			//*(mat->Matrix + row * mat->Cols + col) = rand() * SCALE_FACTOR;
 
-			sum += *(mat->Matrix + row * mat->Cols + col);
-			count++;
+			//sum += *(mat->Matrix + row * mat->Cols + col);
+			//count++;
 		}
 	}
 
@@ -713,10 +764,6 @@ void print(Matrix_t* mat) {
 }
 
 void zeros(Matrix_t* mat) {
-	//for (int row = 0; row < inMat->Rows; row++) {
-	//	*(inMat->Matrix + row) = 0;
-	//}
-
 	for (int row = 0; row < mat->Rows; row++) {
 		for (int col = 0; col < mat->Cols; col++) {
 			*(mat->Matrix + row * mat->Cols + col) = 0;
@@ -748,4 +795,12 @@ double find_max(Matrix_t* vecIn) {
 	}
 
 	return max;
+}
+
+void calc_leaky_relu(int ROWS, float* vecIn, float* vecOut) {
+	const float SCALE = (float)0.01;
+
+	for (int row = 0; row < ROWS; row++) {
+		*(vecOut + row) = *(vecIn + row) > 0 ? *(vecIn + row) : SCALE * *(vecIn + row);
+	}
 }

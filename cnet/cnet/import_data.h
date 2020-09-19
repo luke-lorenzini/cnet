@@ -3,9 +3,10 @@
 
 //#define USE_DIAGNOSTICS
 //#define USE_IMPORT
+//#define USE_CUDA
 
 #ifdef USE_IMPORT
-#define RECORDS 100
+#define RECORDS 10000
 #define LOGITS_COLUMNS 784
 #define LABELS_COLUMNS 10
 #else

@@ -3,7 +3,7 @@
 
 #include "wrap_blas.h"
 
-#define	EPOCHS 100000
+#define	EPOCHS 1000
 #define LAYERS 4
 
 typedef struct {
@@ -61,5 +61,6 @@ void fwd_prop(Matrix_t* W, Matrix_t* b, Matrix_t* a, Matrix_t* z);
 void back_prop(Matrix_t* W, Matrix_t* b, Matrix_t* z, Matrix_t* a, Matrix_t* y, Matrix_t* dW, Matrix_t* db, Matrix_t* dz);
 void init_network(Matrix_t* W, Matrix_t* b, Matrix_t* x, Matrix_t* y, Matrix_t* a, Matrix_t* z, Matrix_t* dz, Matrix_t* dW, Matrix_t* db, Matrix_t* J);
 void gradcheck(Matrix_t* W, Matrix_t* b, Matrix_t* dW, Matrix_t* db);
+void update_weights(Matrix_t* W, Matrix_t* b, Matrix_t* dW, Matrix_t* db, Matrix_t* J, int epoch);
 
 #endif
