@@ -4,6 +4,9 @@
 #include <string.h>
 #include <time.h>
 
+//#define USE_CUDA
+//#define USE_LRD
+
 #ifdef USE_CUDA
 #include <cuda_runtime.h>
 #include "cublas_v2.h"

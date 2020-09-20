@@ -10,3 +10,8 @@
 /cnet/cnet/cnet.aps
 /cnet/cnet.sln
 /cnet/.vs/cnet/v16
+/cnet/cnet/Release
+/cnet/cnet/x64/Release
+/cnet/Release
+/cnet/x64/Debug
+/cnet/cnet/x64/Debug

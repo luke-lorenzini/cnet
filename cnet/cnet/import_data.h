@@ -3,7 +3,6 @@
 
 //#define USE_DIAGNOSTICS
 //#define USE_IMPORT
-//#define USE_CUDA
 
 #ifdef USE_IMPORT
 #define RECORDS 10000

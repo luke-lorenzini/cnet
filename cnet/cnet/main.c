@@ -61,6 +61,18 @@ int main() {
 		print(&b[layer]);
 	}
 
+	a[0] = x[0];
+	fwd_prop(W, b, a, z);
+	print(&a[3]);
+
+	a[0] = x[60];
+	fwd_prop(W, b, a, z);
+	print(&a[3]);
+
+	a[0] = x[120];
+	fwd_prop(W, b, a, z);
+	print(&a[3]);
+
 	// Delete imported data
 	free_data();
 	
