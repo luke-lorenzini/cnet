@@ -3,7 +3,7 @@
 
 #include "wrap_blas.h"
 
-#define	EPOCHS 1000
+#define	EPOCHS 100000
 #define LAYERS 4
 
 typedef struct {
