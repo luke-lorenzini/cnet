@@ -13,8 +13,8 @@ int main() {
 	start = clock();
 
 	srand(2);
-	//time_t t;
-	//srand((unsigned)time(&t));
+	time_t t;
+	srand((unsigned)time(&t));
 
 #ifdef USE_IMPORT
 	read_file();
@@ -34,6 +34,8 @@ int main() {
 	Matrix_t db[LAYERS];
 
 	init_network(W, b, x, y, a, z, dz, dW, db, &J);
+
+	normalize(x);
 
 	// The weight updates
 	for (int epoch = 0; epoch < EPOCHS; epoch++) {

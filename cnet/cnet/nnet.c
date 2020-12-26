@@ -5,11 +5,11 @@
 #include <time.h>
 
 //#define USE_CUDA
-//#define USE_LRD
+#define USE_LRD
 
 #ifdef USE_CUDA
+#include <cublas_v2.h>
 #include <cuda_runtime.h>
-#include "cublas_v2.h"
 #endif
 
 #include "data.h"
@@ -28,7 +28,6 @@ void calc_softmax(Matrix_t* vecIn, Matrix_t* vecOut);
 void mult(Matrix_t* x, Matrix_t* y, Matrix_t* out);
 void add(Matrix_t* x, Matrix_t* y, Matrix_t* out);
 double find_max(Matrix_t* vecIn);
-
 void calc_log(Matrix_t* inMat, Matrix_t* outMat);
 
 Config_t thing[4] = {
@@ -337,6 +336,7 @@ void update_weights(Matrix_t* W, Matrix_t* b, Matrix_t* dW, Matrix_t* db, Matrix
 	// learning rate decay
 	double learningRateInitial = 0.2;
 	double decayRate = 1;
+	decayRate = 0.02;
 	double learningRate = learningRateInitial / (1 + decayRate * epoch);
 #else
 	double learningRate = 0.1;
@@ -619,6 +619,7 @@ double rand_gen() {
 	// return a uniformly distributed random value
 	return ((double)(rand()) + 1.) / ((double)(RAND_MAX)+1.);
 }
+
 double normalRandom() {
 	// return a normally distributed random value
 	double v1 = rand_gen();
@@ -805,5 +806,33 @@ void calc_leaky_relu(int ROWS, float* vecIn, float* vecOut) {
 
 	for (int row = 0; row < ROWS; row++) {
 		*(vecOut + row) = *(vecIn + row) > 0 ? *(vecIn + row) : SCALE * *(vecIn + row);
+	}
+}
+
+void normalize(Matrix_t* mat) {
+	int offset = 0;
+	double sums[4];
+	for (int i = 0; i < sizeof(sums) / sizeof(double); i++) {
+		sums[i] = 0;
+	}
+
+	for (int v = 0; v < RECORDS; v++) {
+		for (int r = 0; r < mat->Rows; r++) {
+			//printf("%f ", mat[v].Matrix[r]);
+			sums[r] += mat[v].Matrix[r];
+		}
+		//printf("\n");
+	}
+
+	for (int i = 0; i < mat->Rows; i++) {
+		sums[i] /= RECORDS;
+	}
+
+	for (int v = 0; v < RECORDS; v++) {
+		for (int r = 0; r < mat->Rows; r++) {
+			mat[v].Matrix[r] -= sums[r];
+			//printf("%f ", mat[v].Matrix[r]);
+		}
+		//printf("\n");
 	}
 }
