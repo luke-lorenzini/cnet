@@ -1,5 +1,4 @@
 #include <math.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -15,6 +14,7 @@
 #include "data.h"
 #include "import_data.h"
 #include "nnet.h"
+#include "utilities.h"
 
 Matrix_t scal_add(double val, Matrix_t* source);
 void init_W(Matrix_t* mat, int size);
@@ -754,18 +754,6 @@ void calc_log(Matrix_t* inMat, Matrix_t* outMat) {
 
 void kill_memory(Matrix_t* p) {
 	free(p->Matrix);
-}
-
-void print(Matrix_t* mat) {
-	//printf("%c\n", inMat->ID);
-	for (int i = 0; i < mat->Rows; i++) {
-		for (int j = 0; j < mat->Cols; j++) {
-			printf("%f ", *(mat->Matrix + i * mat->Cols + j));
-		}
-		printf("\n");
-	}
-
-	printf("\n");
 }
 
 void zeros(Matrix_t* mat) {
