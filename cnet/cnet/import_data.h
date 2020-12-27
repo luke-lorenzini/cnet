@@ -1,7 +1,6 @@
 #ifndef IMPORT_DATA_H
 #define IMPORT_DATA_H
 
-//#define USE_DIAGNOSTICS
 //#define USE_IMPORT
 
 #ifdef USE_IMPORT

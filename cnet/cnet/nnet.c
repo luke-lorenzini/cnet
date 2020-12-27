@@ -144,14 +144,6 @@ void fwd_prop(Matrix_t* W, Matrix_t* b, Matrix_t* a, Matrix_t* z) {
 				calc_softmax(&z[layer], &a[layer]);
 			}
 		}
-#ifdef USE_DIAGNOSTICS
-		printf("W[%d]\n", layer);
-		print(&W[layer]);
-		printf("b[%d]\n", layer);
-		print(&b[layer]);
-		printf("a[%d]\n", layer);
-		print(&a[layer]);
-#endif
 	}
 
 	endFwd = clock();
@@ -220,25 +212,14 @@ void back_prop(Matrix_t* W, Matrix_t* b, Matrix_t* z, Matrix_t* a, Matrix_t* y, 
 			calc_drelu(&z[layer], &zTemp[layer]);
 			mult(&temp1[layer], &zTemp[layer], &dz[layer]);
 		}
-#ifdef USE_DIAGNOSTICS
-		printf("dz[%d]\n", layer);
-		print(&dz[layer]);
-#endif
+
 		// db[n]
 		axpy(1, &dz[layer], &db[layer]); 
-#ifdef USE_DIAGNOSTICS
-		printf("db[%d]\n", layer);
-		print(&db[layer]);
-#endif
+
 		// dW[n]
 		trans(&a[layer - 1], &at[layer - 1]);
 		gemm(&dz[layer], &at[layer - 1], &temp0[layer]);
 		add(&temp0[layer], &dW[layer], &dW[layer]);
-#ifdef USE_DIAGNOSTICS
-		printf("dW[%d]\n", layer);
-		print(&dW[layer]);
-		printf("\n");
-#endif
 	}
 
 	for (int layer = 0; layer < LAYERS; layer++) {
