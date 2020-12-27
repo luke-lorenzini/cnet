@@ -6,6 +6,7 @@
 #include "export_data.h"
 #include "import_data.h"
 #include "nnet.h"
+#include "utilities.h"
 #include "wrap_blas.h"
 
 int main() {

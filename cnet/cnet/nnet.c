@@ -1,6 +1,5 @@
 #include <math.h>
 #include <stdlib.h>
-#include <string.h>
 #include <time.h>
 
 //#define USE_CUDA
@@ -87,55 +86,24 @@ void calculate_loss(Matrix_t* J, Matrix_t* ptr_a, Matrix_t* ptr_y) {
 
 	// Calc A
 	calc_log(ptr_a, &temp3);
-	//printf("ptr_a%d\n", LAYERS - 1);
-	//print(&temp3);
-	//printf("ptr_y%d\n", SAMPLE_SET - 1);
-	//print(&ptr_y[SAMPLE_SET - 1]);
 	mult(ptr_y, &temp3, &A);
-	//printf("A\n");
-	//print(&A);
 
 	// Calc B1
 	scopy(ptr_y, &temp4);
-	//printf("ptr_y\n");
-	//print(&temp4);
 	scal(-1, &temp4);
-	//printf("ptr_y\n");
-	//print(&temp4);
 	axpy(1, &ones, &temp4);
-	//printf("B1\n");
-	//print(&temp4);
 
 	// Calc B2
 	scopy(ptr_a, &temp5);
-	//printf("ptr_a[N]\n");
-	//print(&temp5);
 	scal(-1, &temp5);
-	//printf("ptr_a[N]\n");
-	//print(&temp5);
 	axpy(1, &ones, &temp5);
-	//printf("ptr_a\n");
-	//print(&temp5);
-	//printf("ish\n");
-	//print(&temp5);
 	calc_log(&temp5, &temp5);
-	//printf("B2\n");
-	//print(&temp5);
 
 	// Calc J
 	// todo j should be 1 number, not 3
 	mult(&temp4, &temp5, &temp5);
-	//printf("ish\n");
-	//print(&temp5);
 	axpy(1, &A, &temp5);
-	//printf("J\n");
-	//print(&temp5);
 	axpy(-1, &temp5, J);
-	//if ((J->Matrix[0]) < 0) {
-	//	printf("a\n");
-	//}
-	//printf("J\n");
-	//print(J);
 
 	kill_memory(&ones);
 	kill_memory(&temp3);
@@ -242,36 +210,16 @@ void back_prop(Matrix_t* W, Matrix_t* b, Matrix_t* z, Matrix_t* a, Matrix_t* y, 
 	for (int layer = LAYERS - 1; layer > 0; layer--) {
 		if (layer == (LAYERS - 1)) {
 			// dz[N]
-			//printf("y\n");
-			//print(y);
 			scopy(y, &tempy);
 			scal(-1, &tempy);
-			//printf("tempy\n");
-			//print(&tempy);
-			//printf("a[%d]\n", layer);
-			//print(&a[layer]);
 			axpy(1, &a[layer], &tempy);
-			//printf("tempy\n");
-			//print(&tempy);
 			scopy(&tempy, &dz[layer]);
-			//printf("dz[%d]\n", layer);
-			//print(&dz[layer]);
 		}
 		else {
 			// dz[n]
-			//printf("W%d\n", layer + 1);
-			//print(&W[layer + 1]);
 			trans(&W[layer + 1], &Wt[layer + 1]);
-			//printf("Wt%d\n", layer + 1);
-			//print(&Wt[layer + 1]);
 			gemm(&Wt[layer + 1], &dz[layer + 1], &temp1[layer]);
-			//printf("temp1[%d]\n", layer);
-			//print(&temp1[layer]);
 			calc_drelu(&z[layer], &zTemp[layer]);
-			//printf("z[%d]\n", layer);
-			//print(&z[layer]);
-			//printf("zTemp[%d]\n", layer);
-			//print(&zTemp[layer]);
 			mult(&temp1[layer], &zTemp[layer], &dz[layer]);
 		}
 #ifdef USE_DIAGNOSTICS
@@ -285,23 +233,9 @@ void back_prop(Matrix_t* W, Matrix_t* b, Matrix_t* z, Matrix_t* a, Matrix_t* y, 
 		print(&db[layer]);
 #endif
 		// dW[n]
-		//printf("a[%d]\n", layer - 1);
-		//print(&a[layer - 1]);
 		trans(&a[layer - 1], &at[layer - 1]);
-		//temp0 wrong dimensions
 		gemm(&dz[layer], &at[layer - 1], &temp0[layer]);
-		//if (layer == 2) {
-		//	printf("temp0[%d]\n", layer);
-		//	print(&temp0[layer]);
-		//	printf("dw[%d]\n", layer);
-		//	print(&dW[layer]);
-		//}
 		add(&temp0[layer], &dW[layer], &dW[layer]);
-		//if (layer == 2) {
-		//	printf("dw[%d]\n", layer);
-		//	print(&dW[layer]);
-		//	printf("\n");
-		//}
 #ifdef USE_DIAGNOSTICS
 		printf("dW[%d]\n", layer);
 		print(&dW[layer]);
@@ -344,27 +278,11 @@ void update_weights(Matrix_t* W, Matrix_t* b, Matrix_t* dW, Matrix_t* db, Matrix
 	double scale = learningRate * inverseSize;
 
 	for (int layer = 1; layer < LAYERS; layer++) {
-		//printf("dw[%d]\n", layer);
-		//print(&dW[layer]);
 		regularize(&W[layer], &dW[layer]);
 		scal_mult(scale, &dW[layer], &dW[layer]);
-		//printf("dw[%d]\n", layer);
-		//print(&dW[layer]);
-		//printf("W[%d]\n", layer);
-		//print(&W[layer]);
 		subtract(&W[layer], &dW[layer], &W[layer]);
-		//printf("W[%d]\n", layer);
-		//print(&W[layer]);
-	//printf("db[%d]\n", layer);
-	//print(&db[layer]);
 		scal_mult(scale, &db[layer], &db[layer]);
-		//printf("db[%d]\n", layer);
-		//print(&db[layer]);
-		//printf("b[%d]\n", layer);
-		//print(&b[layer]);
 		subtract(&b[layer], &db[layer], &b[layer]);
-		//printf("b[%d]\n", layer);
-		//print(&b[layer]);
 	}
 	scal(inverseSize, J);
 
@@ -378,26 +296,13 @@ void update_weights(Matrix_t* W, Matrix_t* b, Matrix_t* dW, Matrix_t* db, Matrix
 		//gradcheck(W, b, dW, db);
 		printf("J[%d]\n", epoch);
 		printf("Learning Rate %f\n", learningRate);
-		//print(&J);
 		printf("%f\n\n", sum_vector(J));
 	}
 
 	//reset j, dw, db
 	for (int layer = 1; layer < LAYERS; layer++) {
-		//printf("dW[%d]\n", layer);
-		//print(&dW[layer]);
-
-		//printf("db[%d]\n", layer);
-		//print(&db[layer]);
-
 		zeros(&dW[layer]);
 		zeros(&db[layer]);
-
-		//printf("dW[%d]\n", layer);
-		//print(&dW[layer]);
-
-		//printf("db[%d]\n", layer);
-		//print(&db[layer]);
 	}
 	zeros(J);
 }
@@ -504,16 +409,8 @@ void regularize(Matrix_t* W, Matrix_t* dW) {
 		Wtemp.Cols = W->Cols;
 		Wtemp.Matrix = (double*)calloc(Wtemp.Rows * Wtemp.Cols, sizeof(double));
 
-		//printf("dW[%d]\n", layer);
-		//print(&dW[layer]);
-		//printf("W[%d]\n", layer);
-		//print(&W[layer]);
 		scal_mult(decayRate, W, &Wtemp);
 		add(dW, &Wtemp, dW);
-		//printf("Wtemp[%d]\n", layer);
-		//print(&Wtemp[layer]);
-		//printf("dW[%d]\n", layer);
-		//print(&dW[layer]);
 	//}
 
 		kill_memory(&Wtemp);
@@ -807,10 +704,8 @@ void normalize(Matrix_t* mat) {
 
 	for (int v = 0; v < RECORDS; v++) {
 		for (int r = 0; r < mat->Rows; r++) {
-			//printf("%f ", mat[v].Matrix[r]);
 			sums[r] += mat[v].Matrix[r];
 		}
-		//printf("\n");
 	}
 
 	for (int i = 0; i < mat->Rows; i++) {
@@ -820,8 +715,6 @@ void normalize(Matrix_t* mat) {
 	for (int v = 0; v < RECORDS; v++) {
 		for (int r = 0; r < mat->Rows; r++) {
 			mat[v].Matrix[r] -= sums[r];
-			//printf("%f ", mat[v].Matrix[r]);
 		}
-		//printf("\n");
 	}
 }
