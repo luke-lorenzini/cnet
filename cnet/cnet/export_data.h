@@ -3,6 +3,6 @@
 
 #include "wrap_blas.h"
 
-void export_to_file(Matrix_t* W, Matrix_t* b);
+void export_to_file(Matrix_t* W, Matrix_t* b, int layers);
 
 #endif
