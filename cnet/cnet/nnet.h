@@ -2,15 +2,16 @@
 #define NNET_H
 
 #include "wrap_blas.h"
+#define USE_CUDA
 
-#define	EPOCHS 10000
+#define	EPOCHS 100
 #define LAYERS 4
 
 #define VECTOR_WIDTH  1
 
 #define AAAA LOGITS_COLUMNS
-#define BBBB 128
-#define CCCC 128
+#define BBBB 16
+#define CCCC 16
 #define DDDD LABELS_COLUMNS
 
 typedef struct {
@@ -19,7 +20,6 @@ typedef struct {
 } Model_t;
 
 void scal_mult(double alpha, Matrix_t* y, Matrix_t* out);
-void kill_memory(Matrix_t* p);
 void zeros(Matrix_t* mat);
 void subtract(Matrix_t* x, Matrix_t* y, Matrix_t* out);
 void regularize(Matrix_t* W, Matrix_t* dW);

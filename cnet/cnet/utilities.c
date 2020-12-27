@@ -12,3 +12,7 @@ void print(Matrix_t* mat) {
 
 	printf("\n");
 }
+
+void kill_memory(Matrix_t* p) {
+	free(p->Matrix);
+}
