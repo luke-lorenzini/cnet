@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <time.h>
 
+#include "export_data.h"
 #include "import_data.h"
 #include "nnet.h"
 #include "wrap_blas.h"
@@ -53,6 +54,8 @@ int main() {
 
 		update_weights(W, b, dW, db, &J, epoch);
 	}
+
+	export_to_file(W, b);
 
 	// Print weights after completion
 	for (int layer = 1; layer < LAYERS; layer++) {
