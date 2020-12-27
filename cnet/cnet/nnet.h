@@ -2,7 +2,7 @@
 #define NNET_H
 
 #include "wrap_blas.h"
-#define USE_CUDA
+//#define USE_CUDA
 
 #define	EPOCHS 100
 #define LAYERS 4

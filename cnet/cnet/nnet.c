@@ -2,8 +2,6 @@
 #include <stdlib.h>
 #include <time.h>
 
-#define USE_LRD
-
 #ifdef USE_CUDA
 #include <cublas_v2.h>
 #include <cuda_runtime.h>
@@ -266,15 +264,11 @@ void update_weights(Matrix_t* W, Matrix_t* b, Matrix_t* dW, Matrix_t* db, Matrix
 	// b[1] -= alpha * db[1] / m
 	// J /= m
 	double inverseSize = 1 / (double)RECORDS;
-#ifdef USE_LRD
 	// learning rate decay
 	double learningRateInitial = 0.2;
 	double decayRate = 1;
 	decayRate = 0.02;
 	double learningRate = learningRateInitial / (1 + decayRate * epoch);
-#else
-	double learningRate = 0.1;
-#endif
 	double scale = learningRate * inverseSize;
 
 	for (int layer = 1; layer < LAYERS; layer++) {
