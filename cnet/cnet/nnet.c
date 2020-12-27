@@ -2,12 +2,12 @@
 #include <stdlib.h>
 #include <time.h>
 
-//#define USE_CUDA
 #define USE_LRD
 
 #ifdef USE_CUDA
 #include <cublas_v2.h>
 #include <cuda_runtime.h>
+#include <driver_types.h>
 #endif
 
 #include "data.h"
@@ -421,8 +421,13 @@ void init_network(Matrix_t* W, Matrix_t* b, Matrix_t* x, Matrix_t* y, Matrix_t* 
 		x[i].Rows = ROWS_0;
 		x[i].Cols = VECTOR_WIDTH;
 #ifdef USE_CUDA
-		cudaMallocManaged(x[i].Matrix, x[i].Rows * x[i].Cols, sizeof(double), cudaMemAttachHost);
-		//cudaMalloc(x[i].Matrix, x[i].Rows * x[i].Cols * sizeof(double));
+		//if (cudaMallocManaged(&x[i].Matrix, x[i].Rows * x[i].Cols * sizeof(double)) != 0) {
+		if (cudaMalloc(&x[i].Matrix, x[i].Rows * x[i].Cols * sizeof(double)) != 0) {
+			printf("Failed\n");
+		}
+		else {
+			printf("Succeeded\n");
+		}
 #else
 		x[i].Matrix = (double*)calloc(x[i].Rows * x[i].Cols, sizeof(double));
 #endif
@@ -649,10 +654,6 @@ void calc_log(Matrix_t* inMat, Matrix_t* outMat) {
 	}
 }
 
-void kill_memory(Matrix_t* p) {
-	free(p->Matrix);
-}
-
 void zeros(Matrix_t* mat) {
 	for (int row = 0; row < mat->Rows; row++) {
 		for (int col = 0; col < mat->Cols; col++) {
@@ -697,7 +698,11 @@ void calc_leaky_relu(int ROWS, float* vecIn, float* vecOut) {
 
 void normalize(Matrix_t* mat) {
 	int offset = 0;
+#ifdef USE_IMPORT
+	double sums[784];
+#else
 	double sums[4];
+#endif
 	for (int i = 0; i < sizeof(sums) / sizeof(double); i++) {
 		sums[i] = 0;
 	}
