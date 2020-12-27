@@ -525,6 +525,7 @@ void init_network(Matrix_t* W, Matrix_t* b, Matrix_t* x, Matrix_t* y, Matrix_t* 
 		x[i].Cols = VECTOR_WIDTH;
 #ifdef USE_CUDA
 		cudaMallocManaged(x[i].Matrix, x[i].Rows * x[i].Cols, sizeof(double), cudaMemAttachHost);
+		//cudaMalloc(x[i].Matrix, x[i].Rows * x[i].Cols * sizeof(double));
 #else
 		x[i].Matrix = (double*)calloc(x[i].Rows * x[i].Cols, sizeof(double));
 #endif
