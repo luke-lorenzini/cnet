@@ -27,7 +27,7 @@ void add(Matrix_t* x, Matrix_t* y, Matrix_t* out);
 double find_max(Matrix_t* vecIn);
 void calc_log(Matrix_t* inMat, Matrix_t* outMat);
 
-Config_t thing[4] = {
+Config_t network[4] = {
 	{
 		ROWS_0,
 		COLS_0
@@ -45,6 +45,14 @@ Config_t thing[4] = {
 		COLS_3
 	}
 };
+
+// Backprop vars
+Matrix_t Wt[LAYERS];
+Matrix_t zTemp[LAYERS];
+Matrix_t at[LAYERS];
+Matrix_t temp0[LAYERS];
+Matrix_t temp1[LAYERS];
+Matrix_t tempy;
 
 clock_t startLoss, endLoss, totalLoss;
 
@@ -164,38 +172,38 @@ clock_t startBkwd, endBkwd, totalBkwd;
 void back_prop(Matrix_t* W, Matrix_t* b, Matrix_t* z, Matrix_t* a, Matrix_t* y, Matrix_t* dW, Matrix_t* db, Matrix_t* dz) {
 	startBkwd = clock();
 
-	Matrix_t Wt[LAYERS];
-	Matrix_t zTemp[LAYERS];
-	Matrix_t at[LAYERS];
-	Matrix_t temp0[LAYERS];
-	Matrix_t temp1[LAYERS];
-	Matrix_t tempy;
+	//Matrix_t Wt[LAYERS];
+	//Matrix_t zTemp[LAYERS];
+	//Matrix_t at[LAYERS];
+	//Matrix_t temp0[LAYERS];
+	//Matrix_t temp1[LAYERS];
+	//Matrix_t tempy;
 
 	tempy.Rows = y->Rows;
 	tempy.Cols = y->Cols;
 	tempy.Matrix = (double*)calloc(tempy.Rows * tempy.Cols, sizeof(double));
 
-	for (int idx = 0; idx < LAYERS; idx++) {
-		Wt[idx].Rows = thing[idx].Cols;
-		Wt[idx].Cols = thing[idx].Rows;
-		Wt[idx].Matrix = (double*)calloc(Wt[idx].Rows * Wt[idx].Cols, sizeof(double));
+	//for (int idx = 0; idx < LAYERS; idx++) {
+	//	Wt[idx].Rows = network[idx].Cols;
+	//	Wt[idx].Cols = network[idx].Rows;
+	//	Wt[idx].Matrix = (double*)calloc(Wt[idx].Rows * Wt[idx].Cols, sizeof(double));
 
-		zTemp[idx].Rows = thing[idx].Rows;
-		zTemp[idx].Cols = VECTOR_WIDTH;
-		zTemp[idx].Matrix = (double*)calloc(zTemp[idx].Rows * zTemp[idx].Cols, sizeof(double));
+	//	zTemp[idx].Rows = network[idx].Rows;
+	//	zTemp[idx].Cols = VECTOR_WIDTH;
+	//	zTemp[idx].Matrix = (double*)calloc(zTemp[idx].Rows * zTemp[idx].Cols, sizeof(double));
 
-		at[idx].Rows = VECTOR_WIDTH;
-		at[idx].Cols = thing[idx].Rows;
-		at[idx].Matrix = (double*)calloc(at[idx].Rows * at[idx].Cols, sizeof(double));
+	//	at[idx].Rows = VECTOR_WIDTH;
+	//	at[idx].Cols = network[idx].Rows;
+	//	at[idx].Matrix = (double*)calloc(at[idx].Rows * at[idx].Cols, sizeof(double));
 
-		temp0[idx].Rows = thing[idx].Rows;
-		temp0[idx].Cols = thing[idx].Cols;
-		temp0[idx].Matrix = (double*)calloc(temp0[idx].Rows * temp0[idx].Cols, sizeof(double));
+	//	temp0[idx].Rows = network[idx].Rows;
+	//	temp0[idx].Cols = network[idx].Cols;
+	//	temp0[idx].Matrix = (double*)calloc(temp0[idx].Rows * temp0[idx].Cols, sizeof(double));
 
-		temp1[idx].Rows = thing[idx].Rows;
-		temp1[idx].Cols = VECTOR_WIDTH;
-		temp1[idx].Matrix = (double*)calloc(temp1[idx].Rows * temp1[idx].Cols, sizeof(double));
-	}
+	//	temp1[idx].Rows = network[idx].Rows;
+	//	temp1[idx].Cols = VECTOR_WIDTH;
+	//	temp1[idx].Matrix = (double*)calloc(temp1[idx].Rows * temp1[idx].Cols, sizeof(double));
+	//}
 
 	for (int layer = LAYERS - 1; layer > 0; layer--) {
 		if (layer == (LAYERS - 1)) {
@@ -222,13 +230,13 @@ void back_prop(Matrix_t* W, Matrix_t* b, Matrix_t* z, Matrix_t* a, Matrix_t* y, 
 		add(&temp0[layer], &dW[layer], &dW[layer]);
 	}
 
-	for (int layer = 0; layer < LAYERS; layer++) {
-		kill_memory(&Wt[layer]);
-		kill_memory(&zTemp[layer]);
-		kill_memory(&at[layer]);
-		kill_memory(&temp0[layer]);
-		kill_memory(&temp1[layer]);
-	}
+	//for (int layer = 0; layer < LAYERS; layer++) {
+	//	kill_memory(&Wt[layer]);
+	//	kill_memory(&zTemp[layer]);
+	//	kill_memory(&at[layer]);
+	//	kill_memory(&temp0[layer]);
+	//	kill_memory(&temp1[layer]);
+	//}
 	kill_memory(&tempy);
 
 	endBkwd = clock();
@@ -364,7 +372,7 @@ void gradcheck(Matrix_t* W, Matrix_t* b, Matrix_t* dW, Matrix_t* db) {
 	printf("norm(dTheta) %f\n", dTheta);
 
 	subtract(&gradCheck_dW, &gradCheck_Wdiff, &gradCheck_dWdiff);
-	//printf("thing\n");
+	//printf("network\n");
 	//print(&gradCheck_dWdiff);
 	double dThetaDiff = dnorm(&gradCheck_dWdiff);
 	printf("norm(dThetaApprox - dTheta) %f\n", dThetaDiff);
@@ -389,6 +397,16 @@ void regularize(Matrix_t* W, Matrix_t* dW) {
 	//}
 
 		kill_memory(&Wtemp);
+}
+
+void deinit_network() {
+	for (int layer = 0; layer < LAYERS; layer++) {
+		kill_memory(&Wt[layer]);
+		kill_memory(&zTemp[layer]);
+		kill_memory(&at[layer]);
+		kill_memory(&temp0[layer]);
+		kill_memory(&temp1[layer]);
+	}
 }
 
 void init_network(Matrix_t* W, Matrix_t* b, Matrix_t* x, Matrix_t* y, Matrix_t* a, Matrix_t* z, Matrix_t* dz, Matrix_t* dW, Matrix_t* db, Matrix_t* J) {
@@ -445,38 +463,60 @@ void init_network(Matrix_t* W, Matrix_t* b, Matrix_t* x, Matrix_t* y, Matrix_t* 
 	J->Matrix = (double*)calloc(J->Rows * J->Cols, sizeof(double));
 
 	for (int idx = 1; idx < LAYERS; idx++) {
-		W[idx].Rows = thing[idx].Rows;
-		W[idx].Cols = thing[idx].Cols;
+		W[idx].Rows = network[idx].Rows;
+		W[idx].Cols = network[idx].Cols;
 		W[idx].Matrix = (double*)calloc(W[idx].Rows * W[idx].Cols, sizeof(double));
 		init_W(&W[idx], W[idx].Cols);
 		printf("W[%d]\n", idx);
 		print(&W[idx]);
 
-		b[idx].Rows = thing[idx].Rows;
+		b[idx].Rows = network[idx].Rows;
 		b[idx].Cols = VECTOR_WIDTH;
 		b[idx].Matrix = (double*)calloc(b[idx].Rows * b[idx].Cols, sizeof(double));
 		printf("b[%d]\n", idx);
 		print(&b[idx]);
 
-		z[idx].Rows = thing[idx].Rows;
+		z[idx].Rows = network[idx].Rows;
 		z[idx].Cols = VECTOR_WIDTH;
 		z[idx].Matrix = (double*)calloc(z[idx].Rows * z[idx].Cols, sizeof(double));
 
-		a[idx].Rows = thing[idx].Rows;
+		a[idx].Rows = network[idx].Rows;
 		a[idx].Cols = VECTOR_WIDTH;
 		a[idx].Matrix = (double*)calloc(a[idx].Rows * a[idx].Cols, sizeof(double));
 
-		dz[idx].Rows = thing[idx].Rows;
+		dz[idx].Rows = network[idx].Rows;
 		dz[idx].Cols = VECTOR_WIDTH;
 		dz[idx].Matrix = (double*)calloc(dz[idx].Rows * dz[idx].Cols, sizeof(double));
 
-		dW[idx].Rows = thing[idx].Rows;
-		dW[idx].Cols = thing[idx].Cols;
+		dW[idx].Rows = network[idx].Rows;
+		dW[idx].Cols = network[idx].Cols;
 		dW[idx].Matrix = (double*)calloc(dW[idx].Rows * dW[idx].Cols, sizeof(double));
 
-		db[idx].Rows = thing[idx].Rows;
+		db[idx].Rows = network[idx].Rows;
 		db[idx].Cols = VECTOR_WIDTH;
 		db[idx].Matrix = (double*)calloc(db[idx].Rows * db[idx].Cols, sizeof(double));
+	}
+
+	for (int idx = 0; idx < LAYERS; idx++) {
+		Wt[idx].Rows = network[idx].Cols;
+		Wt[idx].Cols = network[idx].Rows;
+		Wt[idx].Matrix = (double*)calloc(Wt[idx].Rows * Wt[idx].Cols, sizeof(double));
+
+		zTemp[idx].Rows = network[idx].Rows;
+		zTemp[idx].Cols = VECTOR_WIDTH;
+		zTemp[idx].Matrix = (double*)calloc(zTemp[idx].Rows * zTemp[idx].Cols, sizeof(double));
+
+		at[idx].Rows = VECTOR_WIDTH;
+		at[idx].Cols = network[idx].Rows;
+		at[idx].Matrix = (double*)calloc(at[idx].Rows * at[idx].Cols, sizeof(double));
+
+		temp0[idx].Rows = network[idx].Rows;
+		temp0[idx].Cols = network[idx].Cols;
+		temp0[idx].Matrix = (double*)calloc(temp0[idx].Rows * temp0[idx].Cols, sizeof(double));
+
+		temp1[idx].Rows = network[idx].Rows;
+		temp1[idx].Cols = VECTOR_WIDTH;
+		temp1[idx].Matrix = (double*)calloc(temp1[idx].Rows * temp1[idx].Cols, sizeof(double));
 	}
 }
 

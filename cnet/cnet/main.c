@@ -97,6 +97,8 @@ int main() {
 
 	// Delete imported data
 	free_data();
+
+	deinit_network();
 	
 	for (int sample = 0; sample < RECORDS; sample++) {
 		kill_memory(&x[sample]);
