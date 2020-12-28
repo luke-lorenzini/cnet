@@ -10,7 +10,7 @@ void export_to_file(Matrix_t* W, Matrix_t* b, int layers) {
 
 	if (err == 0) {
 		for (int l = 1; l < layers; l++) {
-			fprintf(fp, "W[%d]\n", l);
+			fprintf(fp, "double weight%d[] = {\n", l);
 			for (int r = 0; r < W[l].Rows; r++) {
 				for (int c = 0; c < W[l].Cols; c++) {
 					fprintf(fp, "%f,", W[l].Matrix[(r * W[l].Cols + c)]);
@@ -18,9 +18,9 @@ void export_to_file(Matrix_t* W, Matrix_t* b, int layers) {
 				fprintf(fp, "\n");
 			}
 
-			fprintf(fp, "\n");
+			fprintf(fp, "};\n\n");
 
-			fprintf(fp, "b[%d]\n", l);
+			fprintf(fp, "double bias%d[] = {\n", l);
 			for (int r = 0; r < b[l].Rows; r++) {
 				for (int c = 0; c < b[l].Cols; c++) {
 					fprintf(fp, "%f,", b[l].Matrix[r]);
@@ -28,7 +28,7 @@ void export_to_file(Matrix_t* W, Matrix_t* b, int layers) {
 				fprintf(fp, "\n");
 			}
 
-			fprintf(fp, "\n");
+			fprintf(fp, "};\n\n");
 		}
 	}
 
