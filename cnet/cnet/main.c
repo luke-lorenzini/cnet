@@ -9,23 +9,7 @@
 #include "utilities.h"
 #include "wrap_blas.h"
 
-#ifdef USE_CUDA
-#include <cuda_runtime.h>
-#endif
-
 int main() {
-#ifdef USE_CUDA
-	int deviceCount = 0;
-	cudaError_t error_id = cudaGetDeviceCount(&deviceCount);
-
-	if (error_id != cudaSuccess) {
-		return -1;
-	}
-	else {
-		printf("Found CUDA device\n\n");
-	}
-#endif
-
 	clock_t start, end;
 	double cpu_time_used;
 	start = clock();

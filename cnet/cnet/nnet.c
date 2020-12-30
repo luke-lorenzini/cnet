@@ -2,12 +2,6 @@
 #include <stdlib.h>
 #include <time.h>
 
-#ifdef USE_CUDA
-#include <cublas_v2.h>
-#include <cuda_runtime.h>
-#include <driver_types.h>
-#endif
-
 #include "data.h"
 #include "import_data.h"
 #include "nnet.h"
@@ -413,17 +407,8 @@ void init_network(Matrix_t* W, Matrix_t* b, Matrix_t* x, Matrix_t* y, Matrix_t* 
 	for (int i = 0; i < RECORDS; i++) {
 		x[i].Rows = ROWS_0;
 		x[i].Cols = VECTOR_WIDTH;
-#ifdef USE_CUDA
-		//if (cudaMallocManaged(&x[i].Matrix, x[i].Rows * x[i].Cols * sizeof(double)) != 0) {
-		if (cudaMalloc(&x[i].Matrix, x[i].Rows * x[i].Cols * sizeof(double)) != 0) {
-			printf("Failed\n");
-		}
-		else {
-			printf("Succeeded\n");
-		}
-#else
 		x[i].Matrix = (double*)calloc(x[i].Rows * x[i].Cols, sizeof(double));
-#endif
+
 		for (int j = 0; j < ROWS_0; j++) {
 #ifndef USE_IMPORT
 			x[i].Matrix[j] = IRIS_DATA[i][j];
