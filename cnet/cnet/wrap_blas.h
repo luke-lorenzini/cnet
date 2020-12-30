@@ -3,6 +3,8 @@
 
 #include "cblas.h"
 
+#define USE_CUDA
+
 typedef struct {
 	int Rows;
 	int Cols;
