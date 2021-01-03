@@ -78,7 +78,24 @@ void axpy(const double alpha, Matrix_t* x, Matrix_t* y) {
 }
 
 void scal(const double scale, Matrix_t* mat) {
+#ifdef USE_CUDA
+	double* GPU_A;
+	cudaMalloc(&GPU_A, (size_t)mat->Rows * mat->Cols * sizeof(double));
+
+	cudaMemcpy(GPU_A, mat->Matrix, (size_t)mat->Rows * mat->Cols * sizeof(double), cudaMemcpyDefault);
+
+	const double* alpha = &scale;
+
+	cublasDscal(handle, mat->Rows,
+		alpha,
+		GPU_A, incX);
+
+	cudaMemcpy(mat->Matrix, GPU_A, (size_t)mat->Rows * mat->Cols * sizeof(double), cudaMemcpyDefault);
+
+	cudaFree(GPU_A);
+#else
 	cblas_dscal(mat->Rows, scale, mat->Matrix, incX);
+#endif
 }
 
 void scopy(Matrix_t* x, Matrix_t* y) {
