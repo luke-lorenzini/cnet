@@ -7,6 +7,11 @@
 #include "nnet.h"
 #include "utilities.h"
 
+#ifdef USE_CUDA
+#include "cublas_v2.h"
+#include "cuda_runtime.h"
+#endif
+
 Matrix_t scal_add(double val, Matrix_t* source);
 void init_W(Matrix_t* mat, int size);
 void trans(Matrix_t* A, Matrix_t* B);
@@ -131,7 +136,13 @@ void fwd_prop(Matrix_t* W, Matrix_t* b, Matrix_t* a, Matrix_t* z) {
 
 	for (int layer = 1; layer < LAYERS; layer++) {
 		// z = Wx + b
+		//printf("W[%d]\n", layer);
+		//print(&W[layer]);
+		//printf("a[%d]\n", layer-1);
+		//print(&a[layer-1]);
 		gemm(&W[layer], &a[layer - 1], &z[layer]);
+		//printf("z[%d]\n", layer);
+		//print(&z[layer]);
 
 		axpy(1, &b[layer], &z[layer]);
 
@@ -265,10 +276,10 @@ void update_weights(Matrix_t* W, Matrix_t* b, Matrix_t* dW, Matrix_t* db, Matrix
 
 	if (epoch % (EPOCHS / 10) == 0) {
 		for (int layer = 1; layer < LAYERS; layer++) {
-			printf("W[%d]\n", layer);
-			print(&W[layer]);
-			printf("b[%d]\n", layer);
-			print(&b[layer]);
+			//printf("W[%d]\n", layer);
+			//print(&W[layer]);
+			//printf("b[%d]\n", layer);
+			//print(&b[layer]);
 		}
 		//gradcheck(W, b, dW, db);
 		printf("J[%d]\n", epoch);
@@ -394,6 +405,9 @@ void regularize(Matrix_t* W, Matrix_t* dW) {
 }
 
 void deinit_network() {
+#ifdef USE_CUDA
+	deinit_blas();
+#endif
 	for (int layer = 0; layer < LAYERS; layer++) {
 		kill_memory(&Wt[layer]);
 		kill_memory(&zTemp[layer]);
@@ -404,10 +418,24 @@ void deinit_network() {
 }
 
 void init_network(Matrix_t* W, Matrix_t* b, Matrix_t* x, Matrix_t* y, Matrix_t* a, Matrix_t* z, Matrix_t* dz, Matrix_t* dW, Matrix_t* db, Matrix_t* J) {
+#ifdef USE_CUDA
+	cudaError_t err;
+	size_t size;
+
+	init_blas();
+#endif
+
 	for (int i = 0; i < RECORDS; i++) {
 		x[i].Rows = ROWS_0;
 		x[i].Cols = VECTOR_WIDTH;
+//#ifdef USE_CUDA
+//		//__global__
+//		size = x[i].Rows * x[i].Cols * sizeof(double);
+//		err = cudaMallocManaged(&x[i].Matrix, size, cudaMemAttachGlobal);
+//		zeros(&x[i]);
+//#else
 		x[i].Matrix = (double*)calloc(x[i].Rows * x[i].Cols, sizeof(double));
+//#endif
 
 		for (int j = 0; j < ROWS_0; j++) {
 #ifndef USE_IMPORT
@@ -421,7 +449,15 @@ void init_network(Matrix_t* W, Matrix_t* b, Matrix_t* x, Matrix_t* y, Matrix_t* 
 
 		y[i].Rows = ROWS_3;
 		y[i].Cols = VECTOR_WIDTH;
+//#ifdef USE_CUDA
+//		//__global__
+//		size = y[i].Rows * y[i].Cols * sizeof(double);
+//		err = cudaMallocManaged(&y[i].Matrix, size, cudaMemAttachGlobal);
+//		zeros(&y[i]);
+//#else
 		y[i].Matrix = (double*)calloc(y[i].Rows * y[i].Cols, sizeof(double));
+//#endif
+
 		for (int j = 0; j < ROWS_3; j++) {
 #ifndef USE_IMPORT
 			if (ROWS_3 == 1) {
@@ -450,20 +486,34 @@ void init_network(Matrix_t* W, Matrix_t* b, Matrix_t* x, Matrix_t* y, Matrix_t* 
 	for (int idx = 1; idx < LAYERS; idx++) {
 		W[idx].Rows = network[idx].Rows;
 		W[idx].Cols = network[idx].Cols;
+//#ifdef USE_CUDA
+//		//__global__
+//		size = W[idx].Rows * W[idx].Cols * sizeof(double);
+//		err = cudaMallocManaged(&W[idx].Matrix, size, cudaMemAttachGlobal);
+//		zeros(&W[idx]);
+//#else
 		W[idx].Matrix = (double*)calloc(W[idx].Rows * W[idx].Cols, sizeof(double));
+//#endif
 		init_W(&W[idx], W[idx].Cols);
-		printf("W[%d]\n", idx);
-		print(&W[idx]);
+		//printf("W[%d]\n", idx);
+		//print(&W[idx]);
 
 		b[idx].Rows = network[idx].Rows;
 		b[idx].Cols = VECTOR_WIDTH;
 		b[idx].Matrix = (double*)calloc(b[idx].Rows * b[idx].Cols, sizeof(double));
-		printf("b[%d]\n", idx);
-		print(&b[idx]);
+		//printf("b[%d]\n", idx);
+		//print(&b[idx]);
 
 		z[idx].Rows = network[idx].Rows;
 		z[idx].Cols = VECTOR_WIDTH;
+//#ifdef USE_CUDA
+//		//__global__
+//		size = z[idx].Rows * z[idx].Cols * sizeof(double);
+//		err = cudaMallocManaged(&z[idx].Matrix, size, cudaMemAttachGlobal);
+//		zeros(&z[idx]);
+//#else
 		z[idx].Matrix = (double*)calloc(z[idx].Rows * z[idx].Cols, sizeof(double));
+//#endif
 
 		a[idx].Rows = network[idx].Rows;
 		a[idx].Cols = VECTOR_WIDTH;

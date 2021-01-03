@@ -10,7 +10,8 @@
 #include "wrap_blas.h"
 
 #ifdef USE_CUDA
-#include "driver_types.h"
+#include "cublas_v2.h"
+#include "cuda_runtime.h"
 #endif
 
 int main() {
@@ -76,11 +77,11 @@ int main() {
 
 	// Print weights after completion
 	for (int layer = 1; layer < LAYERS; layer++) {
-		printf("W[%d]\n", layer);
-		print(&W[layer]);
+		//printf("W[%d]\n", layer);
+		//print(&W[layer]);
 
-		printf("b[%d]\n", layer);
-		print(&b[layer]);
+		//printf("b[%d]\n", layer);
+		//print(&b[layer]);
 	}
 
 	a[0] = x[0];

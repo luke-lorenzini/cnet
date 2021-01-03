@@ -3,7 +3,7 @@
 
 #include "cblas.h"
 
-#define USE_CUDA
+//#define USE_CUDA
 
 typedef struct {
 	int Rows;
@@ -18,6 +18,8 @@ void gemm(Matrix_t* a, Matrix_t* b, Matrix_t* c);
 void scal(const double scale, Matrix_t* mat);
 void scopy(Matrix_t* x, Matrix_t* y);
 double dnorm(Matrix_t* mat);
+void init_blas(void);
+void deinit_blas(void);
 
 #ifdef __cplusplus
 }
