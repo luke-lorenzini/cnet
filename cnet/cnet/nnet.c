@@ -428,14 +428,14 @@ void init_network(Matrix_t* W, Matrix_t* b, Matrix_t* x, Matrix_t* y, Matrix_t* 
 	for (int i = 0; i < RECORDS; i++) {
 		x[i].Rows = ROWS_0;
 		x[i].Cols = VECTOR_WIDTH;
-//#ifdef USE_CUDA
-//		//__global__
-//		size = x[i].Rows * x[i].Cols * sizeof(double);
-//		err = cudaMallocManaged(&x[i].Matrix, size, cudaMemAttachGlobal);
-//		zeros(&x[i]);
-//#else
+#ifdef USE_CUDA
+		//__global__
+		size = (size_t)x[i].Rows * x[i].Cols * sizeof(double);
+		err = cudaMallocManaged(&x[i].Matrix, size, cudaMemAttachGlobal);
+		zeros(&x[i]);
+#else
 		x[i].Matrix = (double*)calloc((size_t)x[i].Rows * x[i].Cols, sizeof(double));
-//#endif
+#endif
 
 		for (int j = 0; j < ROWS_0; j++) {
 #ifndef USE_IMPORT
@@ -449,14 +449,14 @@ void init_network(Matrix_t* W, Matrix_t* b, Matrix_t* x, Matrix_t* y, Matrix_t* 
 
 		y[i].Rows = ROWS_3;
 		y[i].Cols = VECTOR_WIDTH;
-//#ifdef USE_CUDA
-//		//__global__
-//		size = y[i].Rows * y[i].Cols * sizeof(double);
-//		err = cudaMallocManaged(&y[i].Matrix, size, cudaMemAttachGlobal);
-//		zeros(&y[i]);
-//#else
+#ifdef USE_CUDA
+		//__global__
+		size = (size_t)y[i].Rows * y[i].Cols * sizeof(double);
+		err = cudaMallocManaged(&y[i].Matrix, size, cudaMemAttachGlobal);
+		zeros(&y[i]);
+#else
 		y[i].Matrix = (double*)calloc((size_t)y[i].Rows * y[i].Cols, sizeof(double));
-//#endif
+#endif
 
 		for (int j = 0; j < ROWS_3; j++) {
 #ifndef USE_IMPORT
@@ -486,21 +486,28 @@ void init_network(Matrix_t* W, Matrix_t* b, Matrix_t* x, Matrix_t* y, Matrix_t* 
 	for (int idx = 1; idx < LAYERS; idx++) {
 		W[idx].Rows = network[idx].Rows;
 		W[idx].Cols = network[idx].Cols;
-//#ifdef USE_CUDA
-//		//__global__
-//		size = W[idx].Rows * W[idx].Cols * sizeof(double);
-//		err = cudaMallocManaged(&W[idx].Matrix, size, cudaMemAttachGlobal);
-//		zeros(&W[idx]);
-//#else
+#ifdef USE_CUDA
+		//__global__
+		size = (size_t)W[idx].Rows * W[idx].Cols * sizeof(double);
+		err = cudaMallocManaged(&W[idx].Matrix, size, cudaMemAttachGlobal);
+		zeros(&W[idx]);
+#else
 		W[idx].Matrix = (double*)calloc((size_t)W[idx].Rows * W[idx].Cols, sizeof(double));
-//#endif
+#endif
 		init_W(&W[idx], W[idx].Cols);
 		//printf("W[%d]\n", idx);
 		//print(&W[idx]);
 
 		b[idx].Rows = network[idx].Rows;
 		b[idx].Cols = VECTOR_WIDTH;
+#ifdef USE_CUDA
+		//__global__
+		size = (size_t)b[idx].Rows * b[idx].Cols * sizeof(double);
+		err = cudaMallocManaged(&b[idx].Matrix, size, cudaMemAttachGlobal);
+		zeros(&b[idx]);
+#else
 		b[idx].Matrix = (double*)calloc((size_t)b[idx].Rows * b[idx].Cols, sizeof(double));
+#endif
 		//printf("b[%d]\n", idx);
 		//print(&b[idx]);
 
@@ -508,7 +515,7 @@ void init_network(Matrix_t* W, Matrix_t* b, Matrix_t* x, Matrix_t* y, Matrix_t* 
 		z[idx].Cols = VECTOR_WIDTH;
 //#ifdef USE_CUDA
 //		//__global__
-//		size = z[idx].Rows * z[idx].Cols * sizeof(double);
+//		size = (size_t)z[idx].Rows * z[idx].Cols * sizeof(double);
 //		err = cudaMallocManaged(&z[idx].Matrix, size, cudaMemAttachGlobal);
 //		zeros(&z[idx]);
 //#else
@@ -517,19 +524,47 @@ void init_network(Matrix_t* W, Matrix_t* b, Matrix_t* x, Matrix_t* y, Matrix_t* 
 
 		a[idx].Rows = network[idx].Rows;
 		a[idx].Cols = VECTOR_WIDTH;
+#ifdef USE_CUDA
+		//__global__
+		size = (size_t)a[idx].Rows * a[idx].Cols * sizeof(double);
+		err = cudaMallocManaged(&a[idx].Matrix, size, cudaMemAttachGlobal);
+		zeros(&a[idx]);
+#else
 		a[idx].Matrix = (double*)calloc((size_t)a[idx].Rows * a[idx].Cols, sizeof(double));
+#endif
 
 		dz[idx].Rows = network[idx].Rows;
 		dz[idx].Cols = VECTOR_WIDTH;
+//#ifdef USE_CUDA
+//		//__global__
+//		size = (size_t)dz[idx].Rows * dz[idx].Cols * sizeof(double);
+//		err = cudaMallocManaged(&dz[idx].Matrix, size, cudaMemAttachGlobal);
+//		zeros(&dz[idx]);
+//#else
 		dz[idx].Matrix = (double*)calloc((size_t)dz[idx].Rows * dz[idx].Cols, sizeof(double));
+//#endif
 
 		dW[idx].Rows = network[idx].Rows;
 		dW[idx].Cols = network[idx].Cols;
+#ifdef USE_CUDA
+		//__global__
+		size = (size_t)dW[idx].Rows * dW[idx].Cols * sizeof(double);
+		err = cudaMallocManaged(&dW[idx].Matrix, size, cudaMemAttachGlobal);
+		zeros(&dW[idx]);
+#else
 		dW[idx].Matrix = (double*)calloc((size_t)dW[idx].Rows * dW[idx].Cols, sizeof(double));
+#endif
 
 		db[idx].Rows = network[idx].Rows;
 		db[idx].Cols = VECTOR_WIDTH;
+//#ifdef USE_CUDA
+//		//__global__
+//		size = (size_t)db[idx].Rows * db[idx].Cols * sizeof(double);
+//		err = cudaMallocManaged(&db[idx].Matrix, size, cudaMemAttachGlobal);
+//		zeros(&db[idx]);
+//#else
 		db[idx].Matrix = (double*)calloc((size_t)db[idx].Rows * db[idx].Cols, sizeof(double));
+//#endif
 	}
 
 	for (int idx = 0; idx < LAYERS; idx++) {
