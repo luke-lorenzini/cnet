@@ -6,11 +6,13 @@
 #include "cuda_runtime.h"
 #endif
 
+#ifndef USE_CUDA
 const float alpha = 1;
 const float beta = 1;
 const int lda = 1;
 const int ldb = 1;
 const int ldc = 1;
+#endif
 const int incX = 1;
 const int incY = 1;
 
@@ -31,7 +33,11 @@ void deinit_blas() {
 }
 
 void gemv(Matrix_t* a, Matrix_t* b, Matrix_t* c) {
+#ifdef USE_CUDA
+
+#else
 	cblas_dgemv(CblasRowMajor, CblasNoTrans, a->Rows, a->Cols, alpha, a->Matrix, lda, b->Matrix, incX, beta, c->Matrix, incY);
+#endif
 }
 
 void gemm(Matrix_t* a, Matrix_t* b, Matrix_t* c) {
@@ -74,7 +80,26 @@ void gemm(Matrix_t* a, Matrix_t* b, Matrix_t* c) {
 }
 
 void axpy(const double alpha, Matrix_t* x, Matrix_t* y) {
+#ifdef USE_CUDA
+	double* GPU_A, * GPU_B;
+	cudaMalloc(&GPU_A, (size_t)x->Rows * x->Cols * sizeof(double));
+	cudaMalloc(&GPU_B, (size_t)y->Rows * y->Cols * sizeof(double));
+
+	cudaMemcpy(GPU_A, x->Matrix, (size_t)x->Rows * x->Cols * sizeof(double), cudaMemcpyDefault);
+	cudaMemcpy(GPU_B, y->Matrix, (size_t)y->Rows * y->Cols * sizeof(double), cudaMemcpyDefault);
+
+	cublasDaxpy(handle, x->Rows, 
+		&alpha, 
+		GPU_A, incX,
+		GPU_B, incY);
+
+	cudaMemcpy(y->Matrix, GPU_B, (size_t)y->Rows * y->Cols * sizeof(double), cudaMemcpyDefault);
+
+	cudaFree(GPU_A);
+	cudaFree(GPU_B);
+#else
 	cblas_daxpy(x->Rows, alpha, x->Matrix, incX, y->Matrix, incY);
+#endif
 }
 
 void scal(const double scale, Matrix_t* mat) {
@@ -84,10 +109,8 @@ void scal(const double scale, Matrix_t* mat) {
 
 	cudaMemcpy(GPU_A, mat->Matrix, (size_t)mat->Rows * mat->Cols * sizeof(double), cudaMemcpyDefault);
 
-	const double* alpha = &scale;
-
 	cublasDscal(handle, mat->Rows,
-		alpha,
+		&scale,
 		GPU_A, incX);
 
 	cudaMemcpy(mat->Matrix, GPU_A, (size_t)mat->Rows * mat->Cols * sizeof(double), cudaMemcpyDefault);
@@ -99,9 +122,42 @@ void scal(const double scale, Matrix_t* mat) {
 }
 
 void scopy(Matrix_t* x, Matrix_t* y) {
+#ifdef USE_CUDA
+	double* GPU_A, * GPU_B;
+	cudaMalloc(&GPU_A, (size_t)x->Rows * x->Cols * sizeof(double));
+	cudaMalloc(&GPU_B, (size_t)y->Rows * y->Cols * sizeof(double));
+
+	cudaMemcpy(GPU_A, x->Matrix, (size_t)x->Rows * x->Cols * sizeof(double), cudaMemcpyDefault);
+	cudaMemcpy(GPU_B, y->Matrix, (size_t)y->Rows * y->Cols * sizeof(double), cudaMemcpyDefault);
+
+	cublasDcopy(handle, x->Rows, 
+		GPU_A, incX,
+		GPU_B, incY);
+
+	cudaMemcpy(y->Matrix, GPU_B, (size_t)y->Rows * y->Cols * sizeof(double), cudaMemcpyDefault);
+
+	cudaFree(GPU_A);
+	cudaFree(GPU_B);
+#else
 	cblas_dcopy(x->Rows, x->Matrix, incX, y->Matrix, incY);
+#endif
 }
 
 double dnorm(Matrix_t* mat) {
+//#ifdef USE_CUDA
+//	double* GPU_A;
+//	double result;
+//	cudaMalloc(&GPU_A, (size_t)mat->Rows * mat->Cols * sizeof(double));
+//
+//	cudaMemcpy(GPU_A, mat->Matrix, (size_t)mat->Rows * mat->Cols * sizeof(double), cudaMemcpyDefault);
+//
+//	cublasDnrm2(handle, mat->Rows, 
+//		GPU_A, incX, &result);
+//
+//	cudaFree(GPU_A);
+//
+//	return result;
+//#else
 	return cblas_dnrm2(mat->Rows, mat->Matrix, incX);
+//#endif
 }
