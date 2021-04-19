@@ -16,7 +16,7 @@ void axpy(const double, Matrix_t* x, Matrix_t* y);
 void gemv(Matrix_t* a, Matrix_t* b, Matrix_t* c);
 void gemm(Matrix_t* a, Matrix_t* b, Matrix_t* c);
 void scal(const double scale, Matrix_t* mat);
-void scopy(Matrix_t* x, Matrix_t* y);
+void dcopy(Matrix_t* x, Matrix_t* y);
 double dnorm(Matrix_t* mat);
 void init_blas(void);
 void deinit_blas(void);
