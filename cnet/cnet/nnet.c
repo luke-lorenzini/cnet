@@ -53,6 +53,14 @@ Matrix_t temp0[LAYERS];
 Matrix_t temp1[LAYERS];
 Matrix_t tempy;
 
+// Loss vars
+Matrix_t ones;
+Matrix_t temp3;
+Matrix_t temp4;
+Matrix_t temp5;
+Matrix_t A;
+Matrix_t B;
+
 clock_t startLoss, endLoss, totalLoss;
 
 // cost
@@ -60,46 +68,88 @@ clock_t startLoss, endLoss, totalLoss;
 void calculate_loss(Matrix_t* J, Matrix_t* ptr_a, Matrix_t* ptr_y) {
 	startLoss = clock();
 
-	Matrix_t ones;
-	Matrix_t temp3;
-	Matrix_t temp4;
-	Matrix_t temp5;
-	Matrix_t A;
-	Matrix_t B;
+	//Matrix_t ones;
+	//Matrix_t temp3;
+	//Matrix_t temp4;
+	//Matrix_t temp5;
+	//Matrix_t A;
+	//Matrix_t B;
 
 	ones.Rows = ptr_y->Rows;
 	ones.Cols = VECTOR_WIDTH;
+#ifdef USE_CUDA
+	//__global__
+	size_t size = (size_t)ones.Rows * ones.Cols * sizeof(double);
+	cudaMallocManaged(&ones.Matrix, size, cudaMemAttachGlobal);
+	zeros(&ones);
+#else
 	ones.Matrix = (double*)calloc((size_t)ones.Rows * ones.Cols, sizeof(double));
+#endif
 	for (int i = 0; i < ones.Rows; i++) {
 		ones.Matrix[i] = 1;
 	}
 	temp3.Rows = ptr_y->Rows;
 	temp3.Cols = VECTOR_WIDTH;
+#ifdef USE_CUDA
+	//__global__
+	size = (size_t)temp3.Rows * temp3.Cols * sizeof(double);
+	cudaMallocManaged(&temp3.Matrix, size, cudaMemAttachGlobal);
+	zeros(&temp3);
+#else
 	temp3.Matrix = (double*)calloc((size_t)temp3.Rows * temp3.Cols, sizeof(double));
+#endif
 	temp4.Rows = ptr_y->Rows;
 	temp4.Cols = VECTOR_WIDTH;
+#ifdef USE_CUDA
+	//__global__
+	size = (size_t)temp4.Rows * temp4.Cols * sizeof(double);
+	cudaMallocManaged(&temp4.Matrix, size, cudaMemAttachGlobal);
+	zeros(&temp4);
+#else
 	temp4.Matrix = (double*)calloc((size_t)temp4.Rows * temp4.Cols, sizeof(double));
+#endif
 	temp5.Rows = ptr_y->Rows;
 	temp5.Cols = VECTOR_WIDTH;
+#ifdef USE_CUDA
+	//__global__
+	size = (size_t)temp5.Rows * temp5.Cols * sizeof(double);
+	cudaMallocManaged(&temp5.Matrix, size, cudaMemAttachGlobal);
+	zeros(&temp5);
+#else
 	temp5.Matrix = (double*)calloc((size_t)temp5.Rows * temp5.Cols, sizeof(double));
+#endif
 	A.Rows = ptr_y->Rows;
 	A.Cols = VECTOR_WIDTH;
+#ifdef USE_CUDA
+	//__global__
+	size = (size_t)A.Rows * A.Cols * sizeof(double);
+	cudaMallocManaged(&A.Matrix, size, cudaMemAttachGlobal);
+	zeros(&A);
+#else
 	A.Matrix = (double*)calloc((size_t)A.Rows * A.Cols, sizeof(double));
+#endif
 	B.Rows = ptr_y->Rows;
 	B.Cols = VECTOR_WIDTH;
+#ifdef USE_CUDA
+	//__global__
+	size = (size_t)B.Rows * B.Cols * sizeof(double);
+	cudaMallocManaged(&B.Matrix, size, cudaMemAttachGlobal);
+	zeros(&B);
+#else
 	B.Matrix = (double*)calloc((size_t)B.Rows * B.Cols, sizeof(double));
+#endif
 
 	// Calc A
 	calc_log(ptr_a, &temp3);
 	mult(ptr_y, &temp3, &A);
 
 	// Calc B1
-	scopy(ptr_y, &temp4);
+	dcopy(ptr_y, &temp4);
 	scal(-1, &temp4);
 	axpy(1, &ones, &temp4);
 
 	// Calc B2
-	scopy(ptr_a, &temp5);
+	dcopy(ptr_a, &temp5);
 	scal(-1, &temp5);
 	axpy(1, &ones, &temp5);
 	calc_log(&temp5, &temp5);
@@ -110,12 +160,21 @@ void calculate_loss(Matrix_t* J, Matrix_t* ptr_a, Matrix_t* ptr_y) {
 	axpy(1, &A, &temp5);
 	axpy(-1, &temp5, J);
 
+#ifdef USE_CUDA
+	cudaFree(ones.Matrix);
+	cudaFree(temp3.Matrix);
+	cudaFree(temp4.Matrix);
+	cudaFree(temp5.Matrix);
+	cudaFree(A.Matrix);
+	cudaFree(B.Matrix);
+#else
 	kill_memory(&ones);
 	kill_memory(&temp3);
 	kill_memory(&temp4);
 	kill_memory(&temp5);
 	kill_memory(&A);
 	kill_memory(&B);
+#endif
 
 	endLoss = clock();
 	totalLoss += (endLoss - startLoss);
@@ -186,7 +245,14 @@ void back_prop(Matrix_t* W, Matrix_t* b, Matrix_t* z, Matrix_t* a, Matrix_t* y, 
 
 	tempy.Rows = y->Rows;
 	tempy.Cols = y->Cols;
+#ifdef USE_CUDA
+	//__global__
+	size_t size = (size_t)tempy.Rows * tempy.Cols * sizeof(double);
+	cudaMallocManaged(&tempy.Matrix, size, cudaMemAttachGlobal);
+	zeros(&tempy);
+#else
 	tempy.Matrix = (double*)calloc((size_t)tempy.Rows * tempy.Cols, sizeof(double));
+#endif
 
 	//for (int idx = 0; idx < LAYERS; idx++) {
 	//	Wt[idx].Rows = network[idx].Cols;
@@ -213,10 +279,10 @@ void back_prop(Matrix_t* W, Matrix_t* b, Matrix_t* z, Matrix_t* a, Matrix_t* y, 
 	for (int layer = LAYERS - 1; layer > 0; layer--) {
 		if (layer == (LAYERS - 1)) {
 			// dz[N]
-			scopy(y, &tempy);
+			dcopy(y, &tempy);
 			scal(-1, &tempy);
 			axpy(1, &a[layer], &tempy);
-			scopy(&tempy, &dz[layer]);
+			dcopy(&tempy, &dz[layer]);
 		}
 		else {
 			// dz[n]
@@ -242,7 +308,15 @@ void back_prop(Matrix_t* W, Matrix_t* b, Matrix_t* z, Matrix_t* a, Matrix_t* y, 
 	//	kill_memory(&temp0[layer]);
 	//	kill_memory(&temp1[layer]);
 	//}
+#ifdef USE_CUDA
+	cudaError_t err = cudaFree(tempy.Matrix);
+	if (err != 0) {
+		printf("Error!");
+	}
+
+#else
 	kill_memory(&tempy);
+#endif
 
 	endBkwd = clock();
 	totalBkwd += (endBkwd - startBkwd);
@@ -266,7 +340,7 @@ void update_weights(Matrix_t* W, Matrix_t* b, Matrix_t* dW, Matrix_t* db, Matrix
 	double scale = learningRate * inverseSize;
 
 	for (int layer = 1; layer < LAYERS; layer++) {
-		regularize(&W[layer], &dW[layer]);
+		//regularize(&W[layer], &dW[layer]);
 		scal_mult(scale, &dW[layer], &dW[layer]);
 		subtract(&W[layer], &dW[layer], &W[layer]);
 		scal_mult(scale, &db[layer], &db[layer]);
@@ -284,7 +358,7 @@ void update_weights(Matrix_t* W, Matrix_t* b, Matrix_t* dW, Matrix_t* db, Matrix
 		//gradcheck(W, b, dW, db);
 		printf("J[%d]\n", epoch);
 		printf("Learning Rate %f\n", learningRate);
-		printf("%f\n\n", sum_vector(J));
+		printf("Loss %f\n\n", sum_vector(J));
 	}
 
 	//reset j, dw, db
@@ -429,7 +503,7 @@ void init_network(Matrix_t* W, Matrix_t* b, Matrix_t* x, Matrix_t* y, Matrix_t* 
 		x[i].Rows = ROWS_0;
 		x[i].Cols = VECTOR_WIDTH;
 #ifdef USE_CUDA
-		//__global__
+		__device__
 		size = (size_t)x[i].Rows * x[i].Cols * sizeof(double);
 		err = cudaMallocManaged(&x[i].Matrix, size, cudaMemAttachGlobal);
 		zeros(&x[i]);
@@ -450,7 +524,7 @@ void init_network(Matrix_t* W, Matrix_t* b, Matrix_t* x, Matrix_t* y, Matrix_t* 
 		y[i].Rows = ROWS_3;
 		y[i].Cols = VECTOR_WIDTH;
 #ifdef USE_CUDA
-		//__global__
+		__device__
 		size = (size_t)y[i].Rows * y[i].Cols * sizeof(double);
 		err = cudaMallocManaged(&y[i].Matrix, size, cudaMemAttachGlobal);
 		zeros(&y[i]);
@@ -481,13 +555,20 @@ void init_network(Matrix_t* W, Matrix_t* b, Matrix_t* x, Matrix_t* y, Matrix_t* 
 
 	J->Rows = ROWS_3;
 	J->Cols = VECTOR_WIDTH;
+#ifdef USE_CUDA
+	__device__
+	size = (size_t)J->Rows * J->Cols * sizeof(double);
+	err = cudaMallocManaged(&J->Matrix, size, cudaMemAttachGlobal);
+	zeros(J);
+#else
 	J->Matrix = (double*)calloc((size_t)J->Rows * J->Cols, sizeof(double));
+#endif
 
 	for (int idx = 1; idx < LAYERS; idx++) {
 		W[idx].Rows = network[idx].Rows;
 		W[idx].Cols = network[idx].Cols;
 #ifdef USE_CUDA
-		//__global__
+		__device__
 		size = (size_t)W[idx].Rows * W[idx].Cols * sizeof(double);
 		err = cudaMallocManaged(&W[idx].Matrix, size, cudaMemAttachGlobal);
 		zeros(&W[idx]);
@@ -501,7 +582,7 @@ void init_network(Matrix_t* W, Matrix_t* b, Matrix_t* x, Matrix_t* y, Matrix_t* 
 		b[idx].Rows = network[idx].Rows;
 		b[idx].Cols = VECTOR_WIDTH;
 #ifdef USE_CUDA
-		//__global__
+		__device__
 		size = (size_t)b[idx].Rows * b[idx].Cols * sizeof(double);
 		err = cudaMallocManaged(&b[idx].Matrix, size, cudaMemAttachGlobal);
 		zeros(&b[idx]);
@@ -513,19 +594,19 @@ void init_network(Matrix_t* W, Matrix_t* b, Matrix_t* x, Matrix_t* y, Matrix_t* 
 
 		z[idx].Rows = network[idx].Rows;
 		z[idx].Cols = VECTOR_WIDTH;
-//#ifdef USE_CUDA
-//		//__global__
-//		size = (size_t)z[idx].Rows * z[idx].Cols * sizeof(double);
-//		err = cudaMallocManaged(&z[idx].Matrix, size, cudaMemAttachGlobal);
-//		zeros(&z[idx]);
-//#else
+#ifdef USE_CUDA
+		__device__
+		size = (size_t)z[idx].Rows * z[idx].Cols * sizeof(double);
+		err = cudaMallocManaged(&z[idx].Matrix, size, cudaMemAttachGlobal);
+		zeros(&z[idx]);
+#else
 		z[idx].Matrix = (double*)calloc((size_t)z[idx].Rows * z[idx].Cols, sizeof(double));
-//#endif
+#endif
 
 		a[idx].Rows = network[idx].Rows;
 		a[idx].Cols = VECTOR_WIDTH;
 #ifdef USE_CUDA
-		//__global__
+		__device__
 		size = (size_t)a[idx].Rows * a[idx].Cols * sizeof(double);
 		err = cudaMallocManaged(&a[idx].Matrix, size, cudaMemAttachGlobal);
 		zeros(&a[idx]);
@@ -535,19 +616,19 @@ void init_network(Matrix_t* W, Matrix_t* b, Matrix_t* x, Matrix_t* y, Matrix_t* 
 
 		dz[idx].Rows = network[idx].Rows;
 		dz[idx].Cols = VECTOR_WIDTH;
-//#ifdef USE_CUDA
-//		//__global__
-//		size = (size_t)dz[idx].Rows * dz[idx].Cols * sizeof(double);
-//		err = cudaMallocManaged(&dz[idx].Matrix, size, cudaMemAttachGlobal);
-//		zeros(&dz[idx]);
-//#else
+#ifdef USE_CUDA
+		__device__
+		size = (size_t)dz[idx].Rows * dz[idx].Cols * sizeof(double);
+		err = cudaMallocManaged(&dz[idx].Matrix, size, cudaMemAttachGlobal);
+		zeros(&dz[idx]);
+#else
 		dz[idx].Matrix = (double*)calloc((size_t)dz[idx].Rows * dz[idx].Cols, sizeof(double));
-//#endif
+#endif
 
 		dW[idx].Rows = network[idx].Rows;
 		dW[idx].Cols = network[idx].Cols;
 #ifdef USE_CUDA
-		//__global__
+		__device__
 		size = (size_t)dW[idx].Rows * dW[idx].Cols * sizeof(double);
 		err = cudaMallocManaged(&dW[idx].Matrix, size, cudaMemAttachGlobal);
 		zeros(&dW[idx]);
@@ -557,36 +638,71 @@ void init_network(Matrix_t* W, Matrix_t* b, Matrix_t* x, Matrix_t* y, Matrix_t* 
 
 		db[idx].Rows = network[idx].Rows;
 		db[idx].Cols = VECTOR_WIDTH;
-//#ifdef USE_CUDA
-//		//__global__
-//		size = (size_t)db[idx].Rows * db[idx].Cols * sizeof(double);
-//		err = cudaMallocManaged(&db[idx].Matrix, size, cudaMemAttachGlobal);
-//		zeros(&db[idx]);
-//#else
+#ifdef USE_CUDA
+		__device__
+		size = (size_t)db[idx].Rows * db[idx].Cols * sizeof(double);
+		err = cudaMallocManaged(&db[idx].Matrix, size, cudaMemAttachGlobal);
+		zeros(&db[idx]);
+#else
 		db[idx].Matrix = (double*)calloc((size_t)db[idx].Rows * db[idx].Cols, sizeof(double));
-//#endif
+#endif
 	}
 
 	for (int idx = 0; idx < LAYERS; idx++) {
 		Wt[idx].Rows = network[idx].Cols;
 		Wt[idx].Cols = network[idx].Rows;
+#ifdef USE_CUDA
+		__device__
+		size = (size_t)Wt[idx].Rows * Wt[idx].Cols * sizeof(double);
+		err = cudaMallocManaged(&Wt[idx].Matrix, size, cudaMemAttachGlobal);
+		zeros(&Wt[idx]);
+#else
 		Wt[idx].Matrix = (double*)calloc((size_t)Wt[idx].Rows * Wt[idx].Cols, sizeof(double));
+#endif
 
 		zTemp[idx].Rows = network[idx].Rows;
 		zTemp[idx].Cols = VECTOR_WIDTH;
+#ifdef USE_CUDA
+		__device__
+		size = (size_t)zTemp[idx].Rows * zTemp[idx].Cols * sizeof(double);
+		err = cudaMallocManaged(&zTemp[idx].Matrix, size, cudaMemAttachGlobal);
+		zeros(&zTemp[idx]);
+#else
 		zTemp[idx].Matrix = (double*)calloc((size_t)zTemp[idx].Rows * zTemp[idx].Cols, sizeof(double));
+#endif
 
 		at[idx].Rows = VECTOR_WIDTH;
 		at[idx].Cols = network[idx].Rows;
+#ifdef USE_CUDA
+		__device__
+		size = (size_t)at[idx].Rows * at[idx].Cols * sizeof(double);
+		err = cudaMallocManaged(&at[idx].Matrix, size, cudaMemAttachGlobal);
+		zeros(&at[idx]);
+#else
 		at[idx].Matrix = (double*)calloc((size_t)at[idx].Rows * at[idx].Cols, sizeof(double));
+#endif
 
 		temp0[idx].Rows = network[idx].Rows;
 		temp0[idx].Cols = network[idx].Cols;
+#ifdef USE_CUDA
+		__device__
+		size = (size_t)temp0[idx].Rows * temp0[idx].Cols * sizeof(double);
+		err = cudaMallocManaged(&temp0[idx].Matrix, size, cudaMemAttachGlobal);
+		zeros(&temp0[idx]);
+#else
 		temp0[idx].Matrix = (double*)calloc((size_t)temp0[idx].Rows * temp0[idx].Cols, sizeof(double));
+#endif
 
 		temp1[idx].Rows = network[idx].Rows;
 		temp1[idx].Cols = VECTOR_WIDTH;
+#ifdef USE_CUDA
+		__device__
+		size = (size_t)temp1[idx].Rows * temp1[idx].Cols * sizeof(double);
+		err = cudaMallocManaged(&temp1[idx].Matrix, size, cudaMemAttachGlobal);
+		zeros(&temp1[idx]);
+#else
 		temp1[idx].Matrix = (double*)calloc((size_t)temp1[idx].Rows * temp1[idx].Cols, sizeof(double));
+#endif
 	}
 }
 
@@ -749,7 +865,8 @@ void zeros(Matrix_t* mat) {
 
 void calc_relu(Matrix_t* vecIn, Matrix_t* vecOut) {
 	for (int row = 0; row < vecIn->Rows; row++) {
-		*(vecOut->Matrix + row) = *(vecIn->Matrix + row) > 0 ? *(vecIn->Matrix + row) : 0;
+		//*(vecOut->Matrix + row) = *(vecIn->Matrix + row) > 0 ? *(vecIn->Matrix + row) : 0;
+		*(vecOut->Matrix + row) = max(*(vecIn->Matrix + row), 0);
 	}
 }
 
